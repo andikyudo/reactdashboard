@@ -106,6 +106,17 @@
 	background-color: rgba(0, 128, 0, 0.4);
 }
 
+/* Warna untuk BTS */
+.pulsing-dot.bts {
+	background-color: rgba(255, 0, 255, 0.8); /* Magenta */
+}
+.pulsing-dot-container.bts::after {
+	background-color: rgba(255, 0, 255, 0.3);
+}
+.pulsing-dot-container.bts::before {
+	background-color: rgba(255, 0, 255, 0.4);
+}
+
 @keyframes pulse {
 	0% {
 		transform: scale(1);

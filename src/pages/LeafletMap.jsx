@@ -1,10 +1,11 @@
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import "../styles/pulsing-dot.css";
 import { useEffect, useRef, useState } from "react";
+import "../styles/pulsing-dot.css";
 
 // Import PulsingDot
 import { createPulsingDotMarker } from "../utils/PulsingDot";
+// Import BTS Service
 
 // Perbaiki masalah icon Leaflet (untuk fallback)
 import icon from "leaflet/dist/images/marker-icon.png";
@@ -100,9 +101,18 @@ function LeafletMap() {
 	const [routeInfo, setRouteInfo] = useState(null);
 	const [travelMode, setTravelMode] = useState("car");
 
+	// State untuk BTS
+	const [showBTS, setShowBTS] = useState(false);
+	const [btsData, setBtsData] = useState([]);
+	const [btsCount, setBtsCount] = useState(0);
+	const [btsApiKey, setBtsApiKey] = useState("");
+	const [isLoadingBTS, setIsLoadingBTS] = useState(false);
+	const [btsError, setBtsError] = useState(null);
+
 	const mapRef = useRef(null);
 	const mapInstanceRef = useRef(null);
 	const markersRef = useRef([]);
+	const btsMarkersRef = useRef([]);
 	const routeLayerRef = useRef(null);
 
 	// Inisialisasi peta
@@ -489,6 +499,106 @@ function LeafletMap() {
 		});
 	};
 
+	// Fungsi untuk memuat data BTS
+	const loadBTSData = async () => {
+		if (!btsApiKey) {
+			setBtsError("API Key diperlukan untuk mengakses data BTS");
+			return;
+		}
+
+		if (!mapInstanceRef.current) return;
+
+		try {
+			setIsLoadingBTS(true);
+			setBtsError(null);
+
+			// Dapatkan batas peta saat ini
+			const bounds = mapInstanceRef.current.getBounds();
+			const boundingBox = {
+				southWest: {
+					lat: bounds.getSouth(),
+					lng: bounds.getWest(),
+				},
+				northEast: {
+					lat: bounds.getNorth(),
+					lng: bounds.getEast(),
+				},
+			};
+
+			// Dapatkan jumlah BTS di area
+			const count = await getBTSCountInArea(btsApiKey, boundingBox);
+			setBtsCount(count);
+
+			if (count > 0) {
+				// Dapatkan data BTS
+				const data = await getBTSInArea(btsApiKey, boundingBox, { limit: 50 });
+				setBtsData(data.cells || []);
+
+				// Tambahkan marker BTS ke peta
+				addBTSMarkersToMap(data.cells || []);
+			} else {
+				setBtsData([]);
+				clearBTSMarkers();
+			}
+		} catch (error) {
+			console.error("Error loading BTS data:", error);
+			setBtsError(error.message || "Gagal memuat data BTS");
+			clearBTSMarkers();
+		} finally {
+			setIsLoadingBTS(false);
+		}
+	};
+
+	// Fungsi untuk menambahkan marker BTS ke peta
+	const addBTSMarkersToMap = (btsItems) => {
+		if (!mapInstanceRef.current) return;
+
+		// Hapus marker BTS yang ada
+		clearBTSMarkers();
+
+		// Tambahkan marker baru untuk setiap BTS
+		btsItems.forEach((bts) => {
+			// Buat marker dengan PulsingDot untuk BTS
+			const marker = createPulsingDotMarker([bts.lat, bts.lon], {
+				category: "bts",
+			}).addTo(mapInstanceRef.current).bindPopup(`
+					<b>BTS ${bts.radio || ""}</b><br>
+					MCC: ${bts.mcc}<br>
+					MNC: ${bts.mnc}<br>
+					LAC: ${bts.lac}<br>
+					CellID: ${bts.cellid}<br>
+					Signal: ${bts.averageSignalStrength || "N/A"}<br>
+					Samples: ${bts.samples || "N/A"}
+				`);
+
+			btsMarkersRef.current.push(marker);
+		});
+	};
+
+	// Fungsi untuk menghapus marker BTS
+	const clearBTSMarkers = () => {
+		if (!mapInstanceRef.current) return;
+
+		btsMarkersRef.current.forEach((marker) => {
+			mapInstanceRef.current.removeLayer(marker);
+		});
+
+		btsMarkersRef.current = [];
+	};
+
+	// Toggle tampilan BTS
+	const toggleBTSLayer = () => {
+		if (showBTS) {
+			// Sembunyikan BTS
+			clearBTSMarkers();
+			setShowBTS(false);
+		} else {
+			// Tampilkan BTS
+			setShowBTS(true);
+			loadBTSData();
+		}
+	};
+
 	return (
 		<div className='space-y-4'>
 			<h1 className='text-3xl font-bold'>Map</h1>
@@ -524,6 +634,62 @@ function LeafletMap() {
 				>
 					{isLocating ? "Mencari lokasi..." : "Lokasi Saya"}
 				</button>
+			</div>
+
+			{/* BTS Controls */}
+			<div className='mb-4 p-4 border rounded-lg bg-white'>
+				<h3 className='font-semibold mb-2'>Base Transceiver Station (BTS)</h3>
+				<div className='flex flex-col md:flex-row gap-4'>
+					<div className='flex-1'>
+						<label className='block text-sm font-medium mb-1'>
+							OpenCelliD API Key:
+						</label>
+						<input
+							type='text'
+							placeholder='Masukkan API Key OpenCelliD'
+							className='w-full p-2 border rounded-md'
+							value={btsApiKey}
+							onChange={(e) => setBtsApiKey(e.target.value)}
+						/>
+						<p className='text-xs text-gray-500 mt-1'>
+							Dapatkan API Key di{" "}
+							<a
+								href='https://opencellid.org/'
+								target='_blank'
+								rel='noopener noreferrer'
+								className='text-blue-500 hover:underline'
+							>
+								opencellid.org
+							</a>
+						</p>
+					</div>
+					<div className='flex items-end'>
+						<button
+							onClick={toggleBTSLayer}
+							disabled={isLoadingBTS || !btsApiKey}
+							className='px-4 py-2 bg-purple-500 text-white rounded-md hover:bg-purple-600 disabled:bg-gray-400 disabled:cursor-not-allowed'
+						>
+							{isLoadingBTS
+								? "Memuat..."
+								: showBTS
+								? "Sembunyikan BTS"
+								: "Tampilkan BTS"}
+						</button>
+					</div>
+				</div>
+
+				{btsError && (
+					<div className='mt-2 p-2 bg-red-100 text-red-700 rounded-md text-sm'>
+						{btsError}
+					</div>
+				)}
+
+				{showBTS && btsCount > 0 && (
+					<div className='mt-2 p-2 bg-blue-100 text-blue-700 rounded-md text-sm'>
+						Menampilkan {btsData.length} dari {btsCount} BTS di area yang
+						terlihat.
+					</div>
+				)}
 			</div>
 
 			{/* Filter kategori */}
@@ -626,8 +792,8 @@ function LeafletMap() {
 					{selectedLocation.category && (
 						<p className='text-sm text-gray-600 mb-2'>
 							Kategori:{" "}
-							{categories.find((c) => c.id === selectedLocation.category)?.name ||
-								selectedLocation.category}
+							{categories.find((c) => c.id === selectedLocation.category)
+								?.name || selectedLocation.category}
 						</p>
 					)}
 					<p className='text-sm text-gray-600'>
@@ -643,19 +809,29 @@ function LeafletMap() {
 				<div className='grid grid-cols-2 md:grid-cols-4 gap-2'>
 					{Object.entries(categoryColors).map(([category, color]) => (
 						<div key={category} className='flex items-center gap-2'>
-							<div className={`pulsing-dot ${category}`} style={{ margin: '0 4px' }}></div>
+							<div
+								className={`pulsing-dot ${category}`}
+								style={{ margin: "0 4px" }}
+							></div>
 							<span className='text-sm capitalize'>
 								{categories.find((c) => c.id === category)?.name || category}
 							</span>
 						</div>
 					))}
 					<div className='flex items-center gap-2'>
-						<div className='pulsing-dot search' style={{ margin: '0 4px' }}></div>
+						<div
+							className='pulsing-dot search'
+							style={{ margin: "0 4px" }}
+						></div>
 						<span className='text-sm'>Hasil Pencarian</span>
 					</div>
 					<div className='flex items-center gap-2'>
-						<div className='pulsing-dot user' style={{ margin: '0 4px' }}></div>
+						<div className='pulsing-dot user' style={{ margin: "0 4px" }}></div>
 						<span className='text-sm'>Lokasi Anda</span>
+					</div>
+					<div className='flex items-center gap-2'>
+						<div className='pulsing-dot bts' style={{ margin: "0 4px" }}></div>
+						<span className='text-sm'>BTS</span>
 					</div>
 				</div>
 			</div>
