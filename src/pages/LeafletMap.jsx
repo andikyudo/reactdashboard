@@ -7,6 +7,7 @@ import "../styles/tower-icon.css";
 // Import PulsingDot
 import { createPulsingDotMarker } from "../utils/PulsingDot";
 // Import TowerIcon
+import { createTowerMarker } from "../utils/TowerIcon";
 // Import BTS Service
 // Import sample BTS data
 import { sampleBTSData } from "../data/sampleBTS";
@@ -154,16 +155,19 @@ function LeafletMap() {
 
 			// Tambahkan event listener untuk perubahan zoom dan pan
 			mapInstanceRef.current.on("moveend", () => {
+				console.log("Map moved, showBTS:", showBTS);
 				if (showBTS) {
 					loadBTSData();
 				}
 			});
 
 			// Muat BTS secara otomatis setelah peta dimuat
+			console.log("Setting up automatic BTS loading");
 			setTimeout(() => {
+				console.log("Auto-loading BTS data");
 				setShowBTS(true);
 				loadBTSData();
-			}, 1000);
+			}, 2000);
 		}
 
 		// Cleanup function
@@ -534,21 +538,28 @@ function LeafletMap() {
 			// Gunakan data sampel BTS alih-alih API
 			console.log("Using sample BTS data:", sampleBTSData);
 
-			// Filter BTS yang berada dalam batas peta
-			const filteredBTS = sampleBTSData.cells.filter((bts) => {
-				const lat = parseFloat(bts.lat);
-				const lon = parseFloat(bts.lon);
-				return bounds.contains([lat, lon]);
-			});
+			// Pastikan data BTS ada
+			if (
+				!sampleBTSData ||
+				!sampleBTSData.cells ||
+				!Array.isArray(sampleBTSData.cells)
+			) {
+				console.error("Invalid BTS data structure:", sampleBTSData);
+				setBtsError("Data BTS tidak valid");
+				return;
+			}
 
-			console.log("Filtered BTS in current bounds:", filteredBTS.length);
+			// Tampilkan semua BTS tanpa filter untuk debugging
+			console.log("All BTS data:", sampleBTSData.cells);
 
-			// Set data BTS
-			setBtsCount(filteredBTS.length);
-			setBtsData(filteredBTS);
+			// Set data BTS (gunakan semua data untuk debugging)
+			setBtsCount(sampleBTSData.cells.length);
+			setBtsData(sampleBTSData.cells);
 
 			// Tambahkan marker BTS ke peta
-			addBTSMarkersToMap(filteredBTS);
+			addBTSMarkersToMap(sampleBTSData.cells);
+
+			console.log("BTS data loaded successfully");
 		} catch (error) {
 			console.error("Error loading BTS data:", error);
 			setBtsError(`Error: ${error.message || "Gagal memuat data BTS"}`);
@@ -678,14 +689,20 @@ function LeafletMap() {
 
 	// Toggle tampilan BTS
 	const toggleBTSLayer = () => {
+		console.log("Toggle BTS layer, current state:", showBTS);
 		if (showBTS) {
 			// Sembunyikan BTS
+			console.log("Hiding BTS");
 			clearBTSMarkers();
 			setShowBTS(false);
 		} else {
 			// Tampilkan BTS
+			console.log("Showing BTS");
 			setShowBTS(true);
-			loadBTSData();
+			setTimeout(() => {
+				console.log("Loading BTS data after toggle");
+				loadBTSData();
+			}, 100);
 		}
 	};
 
