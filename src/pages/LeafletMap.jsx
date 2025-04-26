@@ -596,7 +596,7 @@ function LeafletMap() {
 				const lat = parseFloat(bts.lat);
 				const lon = parseFloat(bts.lon);
 
-				// Buat marker standar untuk BTS
+				// Buat marker standar untuk BTS dengan icon tower
 				const marker = L.marker([lat, lon], {
 					icon: new L.Icon({
 						iconUrl:
@@ -665,15 +665,15 @@ function LeafletMap() {
 					</div>
 				`);
 
-				// Tambahkan sektor cell ID dengan animasi radar
+				// Tambahkan sektor cell ID
 				const cellSectors = createCellSectors(
 					mapInstanceRef.current,
 					[lat, lon],
 					bts.cellRadius || 500,
 					6, // Jumlah sektor
 					{
-						color: "rgba(255, 0, 255, 0.5)",
-						fillColor: "rgba(255, 0, 255, 0.1)",
+						color: "rgba(128, 0, 128, 0.5)", // Warna ungu yang lebih lembut
+						fillColor: "rgba(128, 0, 128, 0.1)",
 					}
 				);
 

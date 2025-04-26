@@ -25,27 +25,6 @@ export function createCellSectors(
 		weight: 1,
 	}).addTo(container);
   
-	// Buat marker untuk tower dan radar
-	// Pertama, buat marker untuk tower di tengah
-	const towerMarker = L.marker(latlng, {
-		icon: L.divIcon({
-			className: '',
-			html: '<div class="radar-tower"></div>',
-			iconSize: [24, 24],
-			iconAnchor: [12, 12]
-		})
-	}).addTo(container);
-  
-	// Kemudian, buat marker untuk radar yang ukurannya sama dengan cell ID
-	const radarMarker = L.marker(latlng, {
-		icon: L.divIcon({
-			className: 'radar-container',
-			html: `<div class="radar-sweep"></div>`,
-			iconSize: [radius * 2, radius * 2],
-			iconAnchor: [radius, radius]
-		})
-	}).addTo(container);
-
 	// Buat sektor-sektor
 	const sectorAngle = 360 / numSectors;
 
@@ -63,9 +42,12 @@ export function createCellSectors(
 			10
 		);
 
+		// Gunakan warna yang lebih lembut untuk sektor
+		const sectorColor = `hsla(${((i * 360) / numSectors) % 360}, 50%, 70%, 0.3)`;
+
 		const sector = L.polygon(sectorPoints, {
 			color: color,
-			fillColor: `hsl(${((i * 360) / numSectors) % 360}, 70%, 60%)`,
+			fillColor: sectorColor,
 			fillOpacity: 0.1,
 			weight: 1,
 		}).addTo(container);
