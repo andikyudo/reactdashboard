@@ -85,7 +85,7 @@ const bottomNavItems = [
 	},
 ];
 
-export function Sidebar({ className, isMobile = false, isCollapsed = false }) {
+export function Sidebar({ className, isCollapsed = false }) {
 	const location = useLocation();
 	const navigate = useNavigate();
 	const { logout } = useAuth();

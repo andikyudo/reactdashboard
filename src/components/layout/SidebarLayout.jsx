@@ -68,7 +68,7 @@ export default function SidebarLayout({ toggleLayout, layoutType }) {
 								<X className='h-5 w-5' />
 							</Button>
 						</div>
-						<Sidebar isMobile />
+						<Sidebar />
 					</MobileSidebar>
 				</SheetContent>
 			</Sheet>

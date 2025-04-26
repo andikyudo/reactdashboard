@@ -198,7 +198,9 @@ function LeafletMap() {
 				mapInstanceRef.current = null;
 			}
 		};
-		// eslint-disable-next-line react-hooks/exhaustive-deps
+		/* eslint-disable react-hooks/exhaustive-deps */
+		// Kita sengaja tidak menambahkan addMarkersToMap, loadBTSData, dan showBTS sebagai dependencies
+		// karena akan menyebabkan re-render yang tidak perlu dan kemungkinan infinite loop
 	}, []);
 
 	// Tambahkan marker ke peta
@@ -281,7 +283,9 @@ function LeafletMap() {
 	// Update marker ketika kategori berubah
 	useEffect(() => {
 		addMarkersToMap();
-		// eslint-disable-next-line react-hooks/exhaustive-deps
+		/* eslint-disable react-hooks/exhaustive-deps */
+		// Kita sengaja tidak menambahkan addMarkersToMap sebagai dependency
+		// karena akan menyebabkan re-render yang tidak perlu
 	}, [selectedCategory, searchResult, userLocation]);
 
 	// Update BTS markers ketika provider berubah
@@ -290,7 +294,9 @@ function LeafletMap() {
 			console.log("Provider changed, reloading BTS data");
 			loadBTSData();
 		}
-		// eslint-disable-next-line react-hooks/exhaustive-deps
+		/* eslint-disable react-hooks/exhaustive-deps */
+		// Kita sengaja tidak menambahkan loadBTSData dan showBTS sebagai dependencies
+		// karena akan menyebabkan re-render yang tidak perlu
 	}, [selectedProvider]);
 
 	// Handler untuk klik pada marker
