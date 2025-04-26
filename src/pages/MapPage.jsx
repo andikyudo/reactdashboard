@@ -1,5 +1,5 @@
-import { GoogleMap, Marker, useJsApiLoader } from "@react-google-maps/api";
-import { useCallback, useState } from "react";
+import { Autocomplete, GoogleMap, Marker, useJsApiLoader } from "@react-google-maps/api";
+import { useCallback, useRef, useState } from "react";
 
 // Gaya untuk container peta
 const containerStyle = {
@@ -23,15 +23,24 @@ const locations = [
   { id: 5, name: "Museum Nasional", position: { lat: -6.1769, lng: 106.8222 } }
 ];
 
+// Libraries yang dibutuhkan untuk Google Maps
+const libraries = ["places"];
+
 function MapPage() {
-  // Muat API Google Maps
+  // Muat API Google Maps dengan library places
   const { isLoaded } = useJsApiLoader({
     id: "google-map-script",
     googleMapsApiKey: "", // Tidak perlu API key untuk penggunaan dasar
+    libraries: libraries,
   });
 
   const [map, setMap] = useState(null);
   const [selectedLocation, setSelectedLocation] = useState(null);
+  const [searchResult, setSearchResult] = useState(null);
+  const [searchMarker, setSearchMarker] = useState(null);
+  
+  // Ref untuk Autocomplete
+  const autocompleteRef = useRef(null);
 
   // Callback ketika peta dimuat
   const onLoad = useCallback(function callback(map) {
@@ -48,12 +57,70 @@ function MapPage() {
     setSelectedLocation(location);
   };
 
+  // Handler untuk Autocomplete
+  const onPlaceChanged = () => {
+    if (autocompleteRef.current !== null) {
+      const place = autocompleteRef.current.getPlace();
+      
+      if (place.geometry && place.geometry.location) {
+        // Dapatkan lokasi dari hasil pencarian
+        const newLocation = {
+          lat: place.geometry.location.lat(),
+          lng: place.geometry.location.lng()
+        };
+        
+        // Tambahkan marker untuk hasil pencarian
+        setSearchMarker(newLocation);
+        
+        // Pindahkan peta ke lokasi hasil pencarian
+        if (map) {
+          map.panTo(newLocation);
+          map.setZoom(15);
+        }
+        
+        // Simpan hasil pencarian
+        setSearchResult({
+          name: place.name || "Lokasi yang Dicari",
+          address: place.formatted_address || "",
+          position: newLocation
+        });
+        
+        // Set lokasi yang dipilih
+        setSelectedLocation({
+          name: place.name || "Lokasi yang Dicari",
+          position: newLocation
+        });
+      }
+    }
+  };
+
+  // Callback ketika Autocomplete dimuat
+  const onAutocompleteLoad = (autocomplete) => {
+    autocompleteRef.current = autocomplete;
+  };
+
   return (
     <div className='space-y-4'>
       <h1 className='text-3xl font-bold'>Map</h1>
       <p className='text-muted-foreground mb-4'>
         Peta interaktif yang menampilkan lokasi penting di Jakarta.
       </p>
+
+      {/* Kotak pencarian */}
+      {isLoaded && (
+        <div className='mb-4'>
+          <Autocomplete
+            onLoad={onAutocompleteLoad}
+            onPlaceChanged={onPlaceChanged}
+          >
+            <input
+              type="text"
+              placeholder="Cari lokasi..."
+              className='w-full p-2 border rounded-md'
+            />
+          </Autocomplete>
+        </div>
+      )}
 
       {/* Container untuk peta */}
       <div className='border rounded-lg overflow-hidden'>
@@ -74,6 +141,18 @@ function MapPage() {
                 onClick={() => handleMarkerClick(location)}
               />
             ))}
+            
+            {/* Marker untuk hasil pencarian */}
+            {searchMarker && (
+              <Marker
+                position={searchMarker}
+                title={searchResult?.name || "Lokasi yang Dicari"}
+                onClick={() => handleMarkerClick(searchResult)}
+                icon={{
+                  url: "http://maps.google.com/mapfiles/ms/icons/blue-dot.png"
+                }}
+              />
+            )}
           </GoogleMap>
         ) : (
           <div
@@ -89,6 +168,9 @@ function MapPage() {
       {selectedLocation && (
         <div className='bg-white p-4 rounded-lg border mt-4'>
           <h3 className='font-semibold mb-2'>{selectedLocation.name}</h3>
+          {searchResult && searchResult.address && selectedLocation.name === searchResult.name && (
+            <p className='text-sm text-gray-600 mb-2'>{searchResult.address}</p>
+          )}
           <p className='text-sm text-gray-600'>
             Latitude: {selectedLocation.position.lat}, Longitude: {selectedLocation.position.lng}
           </p>
