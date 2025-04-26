@@ -1,4 +1,4 @@
-import { Autocomplete, GoogleMap, Marker, useJsApiLoader } from "@react-google-maps/api";
+import { Autocomplete, DirectionsRenderer, GoogleMap, Marker, useJsApiLoader } from "@react-google-maps/api";
 import { useCallback, useRef, useState } from "react";
 
 // Gaya untuk container peta
@@ -76,7 +76,7 @@ const locations = [
 ];
 
 // Libraries yang dibutuhkan untuk Google Maps
-const libraries = ["places"];
+const libraries = ["places", "directions"];
 
 // Warna marker berdasarkan kategori
 const categoryColors = {
@@ -86,8 +86,16 @@ const categoryColors = {
   government: "orange"
 };
 
+// Mode transportasi
+const travelModes = [
+  { id: "DRIVING", name: "Mobil" },
+  { id: "WALKING", name: "Jalan Kaki" },
+  { id: "BICYCLING", name: "Sepeda" },
+  { id: "TRANSIT", name: "Transportasi Umum" }
+];
+
 function MapPage() {
-  // Muat API Google Maps dengan library places
+  // Muat API Google Maps dengan library places dan directions
   const { isLoaded } = useJsApiLoader({
     id: "google-map-script",
     googleMapsApiKey: "", // Tidak perlu API key untuk penggunaan dasar
@@ -102,12 +110,22 @@ function MapPage() {
   const [isLocating, setIsLocating] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState("all");
   
+  // State untuk rute
+  const [origin, setOrigin] = useState(null);
+  const [destination, setDestination] = useState(null);
+  const [directions, setDirections] = useState(null);
+  const [travelMode, setTravelMode] = useState("DRIVING");
+  const [routeInfo, setRouteInfo] = useState(null);
+  const [isCalculatingRoute, setIsCalculatingRoute] = useState(false);
+  
   // Ref untuk Autocomplete
   const autocompleteRef = useRef(null);
+  const directionsServiceRef = useRef(null);
 
   // Callback ketika peta dimuat
   const onLoad = useCallback(function callback(map) {
     setMap(map);
+    directionsServiceRef.current = new window.google.maps.DirectionsService();
   }, []);
 
   // Callback ketika peta di-unmount
@@ -118,6 +136,23 @@ function MapPage() {
   // Handler untuk klik pada marker
   const handleMarkerClick = (location) => {
     setSelectedLocation(location);
+    
+    // Jika origin belum dipilih, set sebagai origin
+    if (!origin) {
+      setOrigin(location);
+    } 
+    // Jika origin sudah dipilih tapi destination belum, set sebagai destination
+    else if (!destination) {
+      setDestination(location);
+      calculateRoute(origin, location);
+    } 
+    // Jika keduanya sudah dipilih, reset dan set yang baru sebagai origin
+    else {
+      setOrigin(location);
+      setDestination(null);
+      setDirections(null);
+      setRouteInfo(null);
+    }
   };
 
   // Handler untuk Autocomplete
@@ -142,17 +177,26 @@ function MapPage() {
         }
         
         // Simpan hasil pencarian
-        setSearchResult({
+        const searchLoc = {
           name: place.name || "Lokasi yang Dicari",
           address: place.formatted_address || "",
           position: newLocation
-        });
+        };
+        
+        setSearchResult(searchLoc);
         
         // Set lokasi yang dipilih
-        setSelectedLocation({
-          name: place.name || "Lokasi yang Dicari",
-          position: newLocation
-        });
+        setSelectedLocation(searchLoc);
+        
+        // Jika origin belum dipilih, set sebagai origin
+        if (!origin) {
+          setOrigin(searchLoc);
+        } 
+        // Jika origin sudah dipilih tapi destination belum, set sebagai destination
+        else if (!destination) {
+          setDestination(searchLoc);
+          calculateRoute(origin, searchLoc);
+        }
       }
     }
   };
@@ -182,11 +226,24 @@ function MapPage() {
             map.setZoom(15);
           }
           
-          // Set lokasi yang dipilih
-          setSelectedLocation({
+          // Buat objek lokasi pengguna
+          const userLoc = {
             name: "Lokasi Anda",
             position: userPos
-          });
+          };
+          
+          // Set lokasi yang dipilih
+          setSelectedLocation(userLoc);
+          
+          // Jika origin belum dipilih, set sebagai origin
+          if (!origin) {
+            setOrigin(userLoc);
+          } 
+          // Jika origin sudah dipilih tapi destination belum, set sebagai destination
+          else if (!destination) {
+            setDestination(userLoc);
+            calculateRoute(origin, userLoc);
+          }
           
           setIsLocating(false);
         },
@@ -201,6 +258,58 @@ function MapPage() {
       alert("Geolocation tidak didukung oleh browser Anda.");
       setIsLocating(false);
     }
+  };
+
+  // Fungsi untuk menghitung rute
+  const calculateRoute = (start, end) => {
+    if (!directionsServiceRef.current || !start || !end) return;
+    
+    setIsCalculatingRoute(true);
+    
+    directionsServiceRef.current.route(
+      {
+        origin: start.position,
+        destination: end.position,
+        travelMode: window.google.maps.TravelMode[travelMode]
+      },
+      (result, status) => {
+        if (status === window.google.maps.DirectionsStatus.OK) {
+          setDirections(result);
+          
+          // Simpan informasi rute
+          const route = result.routes[0];
+          if (route && route.legs && route.legs[0]) {
+            setRouteInfo({
+              distance: route.legs[0].distance.text,
+              duration: route.legs[0].duration.text,
+              startAddress: route.legs[0].start_address,
+              endAddress: route.legs[0].end_address
+            });
+          }
+        } else {
+          console.error(`Directions request failed: ${status}`);
+          alert(`Tidak dapat menghitung rute: ${status}`);
+        }
+        
+        setIsCalculatingRoute(false);
+      }
+    );
+  };
+
+  // Handler untuk perubahan mode transportasi
+  const handleTravelModeChange = (mode) => {
+    setTravelMode(mode);
+    if (origin && destination) {
+      calculateRoute(origin, destination);
+    }
+  };
+
+  // Handler untuk reset rute
+  const resetRoute = () => {
+    setOrigin(null);
+    setDestination(null);
+    setDirections(null);
+    setRouteInfo(null);
   };
 
   // Filter lokasi berdasarkan kategori
@@ -312,6 +421,20 @@ function MapPage() {
                 }}
               />
             )}
+            
+            {/* Render rute */}
+            {directions && (
+              <DirectionsRenderer
+                directions={directions}
+                options={{
+                  suppressMarkers: true,
+                  polylineOptions: {
+                    strokeColor: "#4285F4",
+                    strokeWeight: 5
+                  }
+                }}
+              />
+            )}
           </GoogleMap>
         ) : (
           <div
@@ -323,8 +446,82 @@ function MapPage() {
         )}
       </div>
 
+      {/* Informasi rute */}
+      {origin && (
+        <div className='bg-white p-4 rounded-lg border mt-4'>
+          <div className='flex justify-between items-center mb-2'>
+            <h3 className='font-semibold'>Rute Perjalanan</h3>
+            <button
+              onClick={resetRoute}
+              className='px-2 py-1 bg-red-500 text-white text-xs rounded-md hover:bg-red-600'
+            >
+              Reset Rute
+            </button>
+          </div>
+          
+          <div className='grid grid-cols-1 md:grid-cols-2 gap-4 mb-4'>
+            <div>
+              <p className='text-sm font-semibold'>Titik Awal:</p>
+              <p className='text-sm text-gray-600'>{origin.name}</p>
+              {routeInfo && routeInfo.startAddress && (
+                <p className='text-xs text-gray-500'>{routeInfo.startAddress}</p>
+              )}
+            </div>
+            
+            <div>
+              <p className='text-sm font-semibold'>Tujuan:</p>
+              {destination ? (
+                <>
+                  <p className='text-sm text-gray-600'>{destination.name}</p>
+                  {routeInfo && routeInfo.endAddress && (
+                    <p className='text-xs text-gray-500'>{routeInfo.endAddress}</p>
+                  )}
+                </>
+              ) : (
+                <p className='text-sm text-gray-600'>Pilih lokasi tujuan</p>
+              )}
+            </div>
+          </div>
+          
+          {/* Mode transportasi */}
+          <div className='mb-4'>
+            <p className='text-sm font-semibold mb-2'>Mode Transportasi:</p>
+            <div className='flex flex-wrap gap-2'>
+              {travelModes.map(mode => (
+                <button
+                  key={mode.id}
+                  onClick={() => handleTravelModeChange(mode.id)}
+                  disabled={isCalculatingRoute}
+                  className={`px-3 py-1 rounded-full text-xs ${
+                    travelMode === mode.id
+                      ? 'bg-blue-500 text-white'
+                      : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
+                  } disabled:bg-gray-300 disabled:cursor-not-allowed`}
+                >
+                  {mode.name}
+                </button>
+              ))}
+            </div>
+          </div>
+          
+          {/* Informasi jarak dan waktu */}
+          {routeInfo && (
+            <div className='grid grid-cols-2 gap-4'>
+              <div className='bg-gray-100 p-3 rounded-md'>
+                <p className='text-xs text-gray-500'>Jarak</p>
+                <p className='text-lg font-semibold'>{routeInfo.distance}</p>
+              </div>
+              <div className='bg-gray-100 p-3 rounded-md'>
+                <p className='text-xs text-gray-500'>Waktu Tempuh</p>
+                <p className='text-lg font-semibold'>{routeInfo.duration}</p>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Informasi lokasi yang dipilih */}
-      {selectedLocation && (
+      {selectedLocation && !origin && (
         <div className='bg-white p-4 rounded-lg border mt-4'>
           <h3 className='font-semibold mb-2'>{selectedLocation.name}</h3>
           {searchResult && searchResult.address && selectedLocation.name === searchResult.name && (
