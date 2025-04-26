@@ -116,6 +116,18 @@ function LeafletMap() {
 	);
 	const [isLoadingBTS, setIsLoadingBTS] = useState(false);
 	const [btsError, setBtsError] = useState(null);
+	const [selectedProvider, setSelectedProvider] = useState("all");
+
+	// Daftar provider yang tersedia
+	const providers = [
+		{ id: "all", name: "Semua Provider" },
+		{ id: "Telkomsel", name: "Telkomsel" },
+		{ id: "Indosat", name: "Indosat" },
+		{ id: "XL Axiata", name: "XL Axiata" },
+		{ id: "Tri", name: "Tri (3)" },
+		{ id: "Axis", name: "Axis" },
+		{ id: "Smartfren", name: "Smartfren" },
+	];
 
 	const mapRef = useRef(null);
 	const mapInstanceRef = useRef(null);
@@ -261,6 +273,14 @@ function LeafletMap() {
 	useEffect(() => {
 		addMarkersToMap();
 	}, [selectedCategory, searchResult, userLocation]);
+
+	// Update BTS markers ketika provider berubah
+	useEffect(() => {
+		if (showBTS) {
+			console.log("Provider changed, reloading BTS data");
+			loadBTSData();
+		}
+	}, [selectedProvider]);
 
 	// Handler untuk klik pada marker
 	const handleMarkerClick = (location) => {
@@ -550,15 +570,28 @@ function LeafletMap() {
 				return;
 			}
 
-			// Tampilkan semua BTS tanpa filter untuk debugging
-			console.log("All BTS data:", sampleBTSData.cells);
+			// Filter BTS berdasarkan provider yang dipilih
+			let filteredBTS = sampleBTSData.cells;
 
-			// Set data BTS (gunakan semua data untuk debugging)
+			// Jika provider yang dipilih bukan "all", filter berdasarkan provider
+			if (selectedProvider !== "all") {
+				filteredBTS = sampleBTSData.cells.filter(
+					(bts) => bts.operator === selectedProvider
+				);
+				console.log(
+					`Filtered BTS for provider ${selectedProvider}:`,
+					filteredBTS.length
+				);
+			} else {
+				console.log("Showing all BTS providers");
+			}
+
+			// Set data BTS
 			setBtsCount(sampleBTSData.cells.length);
-			setBtsData(sampleBTSData.cells);
+			setBtsData(filteredBTS);
 
 			// Tambahkan marker BTS ke peta
-			addBTSMarkersToMap(sampleBTSData.cells);
+			addBTSMarkersToMap(filteredBTS);
 
 			console.log("BTS data loaded successfully");
 		} catch (error) {
@@ -762,7 +795,7 @@ function LeafletMap() {
 
 			{/* BTS Controls */}
 			<div className='mb-4 p-4 border rounded-lg bg-white'>
-				<div className='flex justify-between items-center'>
+				<div className='flex justify-between items-center mb-3'>
 					<h3 className='font-semibold'>Base Transceiver Station (BTS)</h3>
 					<button
 						onClick={toggleBTSLayer}
@@ -776,6 +809,26 @@ function LeafletMap() {
 							: "Tampilkan BTS"}
 					</button>
 				</div>
+
+				{/* Provider Filter */}
+				{showBTS && (
+					<div className='mb-3'>
+						<label className='block text-sm font-medium mb-1'>
+							Filter Provider:
+						</label>
+						<select
+							value={selectedProvider}
+							onChange={(e) => setSelectedProvider(e.target.value)}
+							className='w-full p-2 border rounded-md'
+						>
+							{providers.map((provider) => (
+								<option key={provider.id} value={provider.id}>
+									{provider.name}
+								</option>
+							))}
+						</select>
+					</div>
+				)}
 
 				{btsError && (
 					<div className='mt-2 p-2 bg-red-100 text-red-700 rounded-md text-sm'>
