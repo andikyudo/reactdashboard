@@ -14,17 +14,77 @@ const center = {
   lng: 106.8456,
 };
 
-// Lokasi penting di Jakarta
+// Kategori lokasi
+const categories = [
+  { id: "all", name: "Semua" },
+  { id: "landmark", name: "Landmark" },
+  { id: "museum", name: "Museum" },
+  { id: "recreation", name: "Rekreasi" },
+  { id: "government", name: "Pemerintahan" }
+];
+
+// Lokasi penting di Jakarta dengan kategori
 const locations = [
-  { id: 1, name: "Monumen Nasional", position: { lat: -6.1754, lng: 106.8272 } },
-  { id: 2, name: "Istana Merdeka", position: { lat: -6.1701, lng: 106.8219 } },
-  { id: 3, name: "Taman Mini Indonesia Indah", position: { lat: -6.3024, lng: 106.8951 } },
-  { id: 4, name: "Ancol Dreamland", position: { lat: -6.1261, lng: 106.8308 } },
-  { id: 5, name: "Museum Nasional", position: { lat: -6.1769, lng: 106.8222 } }
+  { 
+    id: 1, 
+    name: "Monumen Nasional", 
+    position: { lat: -6.1754, lng: 106.8272 },
+    category: "landmark"
+  },
+  { 
+    id: 2, 
+    name: "Istana Merdeka", 
+    position: { lat: -6.1701, lng: 106.8219 },
+    category: "government"
+  },
+  { 
+    id: 3, 
+    name: "Taman Mini Indonesia Indah", 
+    position: { lat: -6.3024, lng: 106.8951 },
+    category: "recreation"
+  },
+  { 
+    id: 4, 
+    name: "Ancol Dreamland", 
+    position: { lat: -6.1261, lng: 106.8308 },
+    category: "recreation"
+  },
+  { 
+    id: 5, 
+    name: "Museum Nasional", 
+    position: { lat: -6.1769, lng: 106.8222 },
+    category: "museum"
+  },
+  { 
+    id: 6, 
+    name: "Museum Macan", 
+    position: { lat: -6.2185, lng: 106.8107 },
+    category: "museum"
+  },
+  { 
+    id: 7, 
+    name: "Gedung DPR/MPR", 
+    position: { lat: -6.2088, lng: 106.8005 },
+    category: "government"
+  },
+  { 
+    id: 8, 
+    name: "Patung Selamat Datang", 
+    position: { lat: -6.1950, lng: 106.8233 },
+    category: "landmark"
+  }
 ];
 
 // Libraries yang dibutuhkan untuk Google Maps
 const libraries = ["places"];
+
+// Warna marker berdasarkan kategori
+const categoryColors = {
+  landmark: "red",
+  museum: "purple",
+  recreation: "yellow",
+  government: "orange"
+};
 
 function MapPage() {
   // Muat API Google Maps dengan library places
@@ -40,6 +100,7 @@ function MapPage() {
   const [searchMarker, setSearchMarker] = useState(null);
   const [userLocation, setUserLocation] = useState(null);
   const [isLocating, setIsLocating] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState("all");
   
   // Ref untuk Autocomplete
   const autocompleteRef = useRef(null);
@@ -142,6 +203,17 @@ function MapPage() {
     }
   };
 
+  // Filter lokasi berdasarkan kategori
+  const filteredLocations = selectedCategory === "all" 
+    ? locations 
+    : locations.filter(location => location.category === selectedCategory);
+
+  // Mendapatkan URL icon marker berdasarkan kategori
+  const getMarkerIcon = (category) => {
+    const color = categoryColors[category] || "red";
+    return `http://maps.google.com/mapfiles/ms/icons/${color}-dot.png`;
+  };
+
   return (
     <div className='space-y-4'>
       <h1 className='text-3xl font-bold'>Map</h1>
@@ -176,6 +248,26 @@ function MapPage() {
         </button>
       </div>
 
+      {/* Filter kategori */}
+      <div className='mb-4'>
+        <h3 className='font-semibold mb-2'>Filter Kategori:</h3>
+        <div className='flex flex-wrap gap-2'>
+          {categories.map(category => (
+            <button
+              key={category.id}
+              onClick={() => setSelectedCategory(category.id)}
+              className={`px-3 py-1 rounded-full text-sm ${
+                selectedCategory === category.id
+                  ? 'bg-blue-500 text-white'
+                  : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
+              }`}
+            >
+              {category.name}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* Container untuk peta */}
       <div className='border rounded-lg overflow-hidden'>
         {isLoaded ? (
@@ -187,12 +279,13 @@ function MapPage() {
             onUnmount={onUnmount}
           >
             {/* Render marker untuk setiap lokasi */}
-            {locations.map(location => (
+            {filteredLocations.map(location => (
               <Marker
                 key={location.id}
                 position={location.position}
                 title={location.name}
                 onClick={() => handleMarkerClick(location)}
+                icon={location.category ? getMarkerIcon(location.category) : undefined}
               />
             ))}
             
@@ -237,11 +330,37 @@ function MapPage() {
           {searchResult && searchResult.address && selectedLocation.name === searchResult.name && (
             <p className='text-sm text-gray-600 mb-2'>{searchResult.address}</p>
           )}
+          {selectedLocation.category && (
+            <p className='text-sm text-gray-600 mb-2'>
+              Kategori: {categories.find(c => c.id === selectedLocation.category)?.name || selectedLocation.category}
+            </p>
+          )}
           <p className='text-sm text-gray-600'>
             Latitude: {selectedLocation.position.lat.toFixed(6)}, Longitude: {selectedLocation.position.lng.toFixed(6)}
           </p>
         </div>
       )}
+
+      {/* Legenda kategori */}
+      <div className='bg-white p-4 rounded-lg border mt-4'>
+        <h3 className='font-semibold mb-2'>Legenda:</h3>
+        <div className='grid grid-cols-2 md:grid-cols-4 gap-2'>
+          {Object.entries(categoryColors).map(([category, color]) => (
+            <div key={category} className='flex items-center gap-2'>
+              <div className='w-4 h-4 rounded-full' style={{ backgroundColor: color }}></div>
+              <span className='text-sm capitalize'>{categories.find(c => c.id === category)?.name || category}</span>
+            </div>
+          ))}
+          <div className='flex items-center gap-2'>
+            <div className='w-4 h-4 rounded-full bg-blue-500'></div>
+            <span className='text-sm'>Hasil Pencarian</span>
+          </div>
+          <div className='flex items-center gap-2'>
+            <div className='w-4 h-4 rounded-full bg-green-500'></div>
+            <span className='text-sm'>Lokasi Anda</span>
+          </div>
+        </div>
+      </div>
 
       <div className='grid grid-cols-1 md:grid-cols-3 gap-4 mt-4'>
         <div className='bg-white p-4 rounded-lg border'>
