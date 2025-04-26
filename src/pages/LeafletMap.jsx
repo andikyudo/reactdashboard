@@ -6,6 +6,7 @@ import "../styles/pulsing-dot.css";
 // Import PulsingDot
 import { createPulsingDotMarker } from "../utils/PulsingDot";
 // Import BTS Service
+import { getBTSCountInArea, getBTSInArea } from "../utils/BTSService";
 
 // Perbaiki masalah icon Leaflet (untuk fallback)
 import icon from "leaflet/dist/images/marker-icon.png";
@@ -105,7 +106,9 @@ function LeafletMap() {
 	const [showBTS, setShowBTS] = useState(false);
 	const [btsData, setBtsData] = useState([]);
 	const [btsCount, setBtsCount] = useState(0);
-	const [btsApiKey, setBtsApiKey] = useState("");
+	const [btsApiKey, setBtsApiKey] = useState(
+		"pk.ac9c55b0a7bb0fe373bbb8ff3327be64"
+	);
 	const [isLoadingBTS, setIsLoadingBTS] = useState(false);
 	const [btsError, setBtsError] = useState(null);
 
@@ -145,6 +148,19 @@ function LeafletMap() {
 
 			// Tambahkan marker untuk lokasi
 			addMarkersToMap();
+
+			// Tambahkan event listener untuk perubahan zoom dan pan
+			mapInstanceRef.current.on("moveend", () => {
+				if (showBTS) {
+					loadBTSData();
+				}
+			});
+
+			// Muat BTS secara otomatis setelah peta dimuat
+			setTimeout(() => {
+				setShowBTS(true);
+				loadBTSData();
+			}, 1000);
 		}
 
 		// Cleanup function
@@ -638,44 +654,19 @@ function LeafletMap() {
 
 			{/* BTS Controls */}
 			<div className='mb-4 p-4 border rounded-lg bg-white'>
-				<h3 className='font-semibold mb-2'>Base Transceiver Station (BTS)</h3>
-				<div className='flex flex-col md:flex-row gap-4'>
-					<div className='flex-1'>
-						<label className='block text-sm font-medium mb-1'>
-							OpenCelliD API Key:
-						</label>
-						<input
-							type='text'
-							placeholder='Masukkan API Key OpenCelliD'
-							className='w-full p-2 border rounded-md'
-							value={btsApiKey}
-							onChange={(e) => setBtsApiKey(e.target.value)}
-						/>
-						<p className='text-xs text-gray-500 mt-1'>
-							Dapatkan API Key di{" "}
-							<a
-								href='https://opencellid.org/'
-								target='_blank'
-								rel='noopener noreferrer'
-								className='text-blue-500 hover:underline'
-							>
-								opencellid.org
-							</a>
-						</p>
-					</div>
-					<div className='flex items-end'>
-						<button
-							onClick={toggleBTSLayer}
-							disabled={isLoadingBTS || !btsApiKey}
-							className='px-4 py-2 bg-purple-500 text-white rounded-md hover:bg-purple-600 disabled:bg-gray-400 disabled:cursor-not-allowed'
-						>
-							{isLoadingBTS
-								? "Memuat..."
-								: showBTS
-								? "Sembunyikan BTS"
-								: "Tampilkan BTS"}
-						</button>
-					</div>
+				<div className='flex justify-between items-center'>
+					<h3 className='font-semibold'>Base Transceiver Station (BTS)</h3>
+					<button
+						onClick={toggleBTSLayer}
+						disabled={isLoadingBTS}
+						className='px-4 py-2 bg-purple-500 text-white rounded-md hover:bg-purple-600 disabled:bg-gray-400 disabled:cursor-not-allowed'
+					>
+						{isLoadingBTS
+							? "Memuat..."
+							: showBTS
+							? "Sembunyikan BTS"
+							: "Tampilkan BTS"}
+					</button>
 				</div>
 
 				{btsError && (
@@ -689,6 +680,13 @@ function LeafletMap() {
 						Menampilkan {btsData.length} dari {btsCount} BTS di area yang
 						terlihat.
 					</div>
+				)}
+
+				{!showBTS && (
+					<p className='text-sm text-gray-600 mt-2'>
+						Klik tombol "Tampilkan BTS" untuk melihat lokasi Base Transceiver
+						Station (BTS) di area yang terlihat pada peta.
+					</p>
 				)}
 			</div>
 
