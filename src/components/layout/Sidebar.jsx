@@ -12,6 +12,7 @@ import {
 	BarChart3,
 	Calendar,
 	FileText,
+	Globe,
 	HelpCircle,
 	Home,
 	LayoutDashboard,
@@ -53,6 +54,11 @@ const mainNavItems = [
 		title: "Statistics",
 		href: "/statistics",
 		icon: PieChart,
+	},
+	{
+		title: "Map",
+		href: "/map",
+		icon: Globe,
 	},
 	{
 		title: "Calendar",
