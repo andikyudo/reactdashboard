@@ -6,7 +6,8 @@ import "../styles/pulsing-dot.css";
 // Import PulsingDot
 import { createPulsingDotMarker } from "../utils/PulsingDot";
 // Import BTS Service
-import { getBTSCountInArea, getBTSInArea } from "../utils/BTSService";
+// Import sample BTS data
+import { sampleBTSData } from "../data/sampleBTS";
 
 // Perbaiki masalah icon Leaflet (untuk fallback)
 import icon from "leaflet/dist/images/marker-icon.png";
@@ -517,11 +518,6 @@ function LeafletMap() {
 
 	// Fungsi untuk memuat data BTS
 	const loadBTSData = async () => {
-		if (!btsApiKey) {
-			setBtsError("API Key diperlukan untuk mengakses data BTS");
-			return;
-		}
-
 		if (!mapInstanceRef.current) return;
 
 		try {
@@ -530,35 +526,30 @@ function LeafletMap() {
 
 			// Dapatkan batas peta saat ini
 			const bounds = mapInstanceRef.current.getBounds();
-			const boundingBox = {
-				southWest: {
-					lat: bounds.getSouth(),
-					lng: bounds.getWest(),
-				},
-				northEast: {
-					lat: bounds.getNorth(),
-					lng: bounds.getEast(),
-				},
-			};
 
-			// Dapatkan jumlah BTS di area
-			const count = await getBTSCountInArea(btsApiKey, boundingBox);
-			setBtsCount(count);
+			console.log("Current map bounds:", bounds);
 
-			if (count > 0) {
-				// Dapatkan data BTS
-				const data = await getBTSInArea(btsApiKey, boundingBox, { limit: 50 });
-				setBtsData(data.cells || []);
+			// Gunakan data sampel BTS alih-alih API
+			console.log("Using sample BTS data:", sampleBTSData);
 
-				// Tambahkan marker BTS ke peta
-				addBTSMarkersToMap(data.cells || []);
-			} else {
-				setBtsData([]);
-				clearBTSMarkers();
-			}
+			// Filter BTS yang berada dalam batas peta
+			const filteredBTS = sampleBTSData.cells.filter((bts) => {
+				const lat = parseFloat(bts.lat);
+				const lon = parseFloat(bts.lon);
+				return bounds.contains([lat, lon]);
+			});
+
+			console.log("Filtered BTS in current bounds:", filteredBTS.length);
+
+			// Set data BTS
+			setBtsCount(filteredBTS.length);
+			setBtsData(filteredBTS);
+
+			// Tambahkan marker BTS ke peta
+			addBTSMarkersToMap(filteredBTS);
 		} catch (error) {
 			console.error("Error loading BTS data:", error);
-			setBtsError(error.message || "Gagal memuat data BTS");
+			setBtsError(`Error: ${error.message || "Gagal memuat data BTS"}`);
 			clearBTSMarkers();
 		} finally {
 			setIsLoadingBTS(false);
@@ -572,23 +563,45 @@ function LeafletMap() {
 		// Hapus marker BTS yang ada
 		clearBTSMarkers();
 
+		console.log("Adding BTS markers to map:", btsItems.length);
+
 		// Tambahkan marker baru untuk setiap BTS
 		btsItems.forEach((bts) => {
-			// Buat marker dengan PulsingDot untuk BTS
-			const marker = createPulsingDotMarker([bts.lat, bts.lon], {
-				category: "bts",
-			}).addTo(mapInstanceRef.current).bindPopup(`
-					<b>BTS ${bts.radio || ""}</b><br>
-					MCC: ${bts.mcc}<br>
-					MNC: ${bts.mnc}<br>
-					LAC: ${bts.lac}<br>
-					CellID: ${bts.cellid}<br>
-					Signal: ${bts.averageSignalStrength || "N/A"}<br>
-					Samples: ${bts.samples || "N/A"}
-				`);
+			try {
+				// Validasi data BTS
+				if (
+					!bts.lat ||
+					!bts.lon ||
+					isNaN(parseFloat(bts.lat)) ||
+					isNaN(parseFloat(bts.lon))
+				) {
+					console.warn("Invalid BTS coordinates:", bts);
+					return;
+				}
 
-			btsMarkersRef.current.push(marker);
+				const lat = parseFloat(bts.lat);
+				const lon = parseFloat(bts.lon);
+
+				// Buat marker dengan PulsingDot untuk BTS
+				const marker = createPulsingDotMarker([lat, lon], {
+					category: "bts",
+				}).addTo(mapInstanceRef.current).bindPopup(`
+						<b>BTS ${bts.radio || ""}</b><br>
+						MCC: ${bts.mcc}<br>
+						MNC: ${bts.mnc}<br>
+						LAC: ${bts.lac}<br>
+						CellID: ${bts.cellid}<br>
+						Signal: ${bts.averageSignalStrength || "N/A"}<br>
+						Samples: ${bts.samples || "N/A"}
+					`);
+
+				btsMarkersRef.current.push(marker);
+			} catch (error) {
+				console.error("Error adding BTS marker:", error, bts);
+			}
 		});
+
+		console.log("Added BTS markers:", btsMarkersRef.current.length);
 	};
 
 	// Fungsi untuk menghapus marker BTS
