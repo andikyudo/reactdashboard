@@ -38,6 +38,8 @@ function MapPage() {
   const [selectedLocation, setSelectedLocation] = useState(null);
   const [searchResult, setSearchResult] = useState(null);
   const [searchMarker, setSearchMarker] = useState(null);
+  const [userLocation, setUserLocation] = useState(null);
+  const [isLocating, setIsLocating] = useState(false);
   
   // Ref untuk Autocomplete
   const autocompleteRef = useRef(null);
@@ -99,6 +101,47 @@ function MapPage() {
     autocompleteRef.current = autocomplete;
   };
 
+  // Fungsi untuk mendapatkan lokasi pengguna
+  const getUserLocation = () => {
+    setIsLocating(true);
+    
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const userPos = {
+            lat: position.coords.latitude,
+            lng: position.coords.longitude
+          };
+          
+          setUserLocation(userPos);
+          
+          // Pindahkan peta ke lokasi pengguna
+          if (map) {
+            map.panTo(userPos);
+            map.setZoom(15);
+          }
+          
+          // Set lokasi yang dipilih
+          setSelectedLocation({
+            name: "Lokasi Anda",
+            position: userPos
+          });
+          
+          setIsLocating(false);
+        },
+        (error) => {
+          console.error("Error getting user location:", error);
+          alert("Tidak dapat mendapatkan lokasi Anda. Pastikan Anda telah mengizinkan akses lokasi.");
+          setIsLocating(false);
+        },
+        { enableHighAccuracy: true }
+      );
+    } else {
+      alert("Geolocation tidak didukung oleh browser Anda.");
+      setIsLocating(false);
+    }
+  };
+
   return (
     <div className='space-y-4'>
       <h1 className='text-3xl font-bold'>Map</h1>
@@ -106,21 +149,32 @@ function MapPage() {
         Peta interaktif yang menampilkan lokasi penting di Jakarta.
       </p>
 
-      {/* Kotak pencarian */}
-      {isLoaded && (
-        <div className='mb-4'>
-          <Autocomplete
-            onLoad={onAutocompleteLoad}
-            onPlaceChanged={onPlaceChanged}
-          >
-            <input
-              type="text"
-              placeholder="Cari lokasi..."
-              className='w-full p-2 border rounded-md'
-            />
-          </Autocomplete>
-        </div>
-      )}
+      <div className='flex flex-col md:flex-row gap-4 mb-4'>
+        {/* Kotak pencarian */}
+        {isLoaded && (
+          <div className='flex-1'>
+            <Autocomplete
+              onLoad={onAutocompleteLoad}
+              onPlaceChanged={onPlaceChanged}
+            >
+              <input
+                type="text"
+                placeholder="Cari lokasi..."
+                className='w-full p-2 border rounded-md'
+              />
+            </Autocomplete>
+          </div>
+        )}
+        
+        {/* Tombol lokasi pengguna */}
+        <button
+          onClick={getUserLocation}
+          disabled={isLocating || !isLoaded}
+          className='px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 disabled:bg-gray-400 disabled:cursor-not-allowed'
+        >
+          {isLocating ? 'Mencari lokasi...' : 'Lokasi Saya'}
+        </button>
+      </div>
 
       {/* Container untuk peta */}
       <div className='border rounded-lg overflow-hidden'>
@@ -153,6 +207,18 @@ function MapPage() {
                 }}
               />
             )}
+            
+            {/* Marker untuk lokasi pengguna */}
+            {userLocation && (
+              <Marker
+                position={userLocation}
+                title="Lokasi Anda"
+                onClick={() => handleMarkerClick({ name: "Lokasi Anda", position: userLocation })}
+                icon={{
+                  url: "http://maps.google.com/mapfiles/ms/icons/green-dot.png"
+                }}
+              />
+            )}
           </GoogleMap>
         ) : (
           <div
@@ -172,7 +238,7 @@ function MapPage() {
             <p className='text-sm text-gray-600 mb-2'>{searchResult.address}</p>
           )}
           <p className='text-sm text-gray-600'>
-            Latitude: {selectedLocation.position.lat}, Longitude: {selectedLocation.position.lng}
+            Latitude: {selectedLocation.position.lat.toFixed(6)}, Longitude: {selectedLocation.position.lng.toFixed(6)}
           </p>
         </div>
       )}
