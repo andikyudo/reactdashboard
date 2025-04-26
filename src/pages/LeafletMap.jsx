@@ -27,6 +27,12 @@ import { sampleBTSData } from "../data/sampleBTS";
 // Perbaiki masalah icon Leaflet (untuk fallback)
 import icon from "leaflet/dist/images/marker-icon.png";
 import iconShadow from "leaflet/dist/images/marker-shadow.png";
+
+// Kategori lokasi
+const categories = [
+	{ id: "all", name: "Semua" },
+	{ id: "landmark", name: "Landmark" },
+	{ id: "museum", name: "Museum" },
 	{ id: "recreation", name: "Rekreasi" },
 	{ id: "government", name: "Pemerintahan" },
 ];
