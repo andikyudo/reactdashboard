@@ -25,22 +25,18 @@ export function createCellSectors(
 		weight: 1,
 	}).addTo(container);
 
-	// Buat container untuk animasi radar yang tepat berada di dalam lingkaran
-	const radarContainer = L.circle(latlng, {
-		radius: radius,
-		color: "transparent",
-		fillColor: "transparent",
-		fillOpacity: 0,
-		weight: 0,
-		className: "radar-circle",
-	}).addTo(container);
+	// Buat container untuk animasi radar
+	// Gunakan ukuran yang tepat sama dengan diameter lingkaran
+	const radarSize = radius * 2;
 
-	// Tambahkan elemen sweep radar
-	// Ukuran harus sedikit lebih kecil dari radius untuk memastikan tidak melebihi lingkaran
-	const radarSize = radius * 1.98; // Sedikit lebih kecil dari diameter lingkaran
+	// Buat div icon dengan struktur yang lebih baik untuk clipping
 	const icon = L.divIcon({
 		className: "radar-container",
-		html: `<div class="radar-sweep" style="width: ${radarSize}px; height: ${radarSize}px;"></div>`,
+		html: `
+			<div class="radar-circle" style="width: ${radarSize}px; height: ${radarSize}px;">
+				<div class="radar-sweep" style="width: ${radarSize}px; height: ${radarSize}px;"></div>
+			</div>
+		`,
 		iconSize: [radarSize, radarSize],
 		iconAnchor: [radarSize / 2, radarSize / 2],
 	});

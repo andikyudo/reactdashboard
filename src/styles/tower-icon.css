@@ -49,10 +49,21 @@
 }
 
 /* Radar animation */
-.radar-circle {
+.radar-container {
 	position: relative;
+	overflow: visible;
+}
+
+.radar-circle {
+	position: absolute;
 	overflow: hidden;
 	border-radius: 50%;
+	width: 100%;
+	height: 100%;
+	top: 0;
+	left: 0;
+	clip-path: circle(50%);
+	-webkit-clip-path: circle(50%);
 }
 
 .radar-sweep {
@@ -69,7 +80,8 @@
 	);
 	animation: radar-sweep 4s linear infinite;
 	transform-origin: center;
-	overflow: hidden;
+	clip-path: circle(50%);
+	-webkit-clip-path: circle(50%);
 }
 
 @keyframes radar-sweep {
