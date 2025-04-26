@@ -8,9 +8,9 @@ export class PulsingDot extends L.DivIcon {
 		super({
 			className: `pulsing-dot-container ${category}`,
 			html: `<div class="pulsing-dot ${category}"></div>`,
-			iconSize: [16, 16],
-			iconAnchor: [8, 8],
-			popupAnchor: [0, -8],
+			iconSize: [10, 10],
+			iconAnchor: [5, 5],
+			popupAnchor: [0, -5],
 		});
 	}
 }
