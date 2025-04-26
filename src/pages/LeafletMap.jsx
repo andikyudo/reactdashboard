@@ -4,24 +4,29 @@ import { useEffect, useRef, useState } from "react";
 import "../styles/pulsing-dot.css";
 import "../styles/tower-icon.css";
 
+// Import shadcn/ui components
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { 
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+
 // Import PulsingDot
 import { createPulsingDotMarker } from "../utils/PulsingDot";
-// Import TowerIcon
 // Import Cell Sector
 import { createCellSectors } from "../utils/CellSector";
-// Import BTS Service
 // Import sample BTS data
 import { sampleBTSData } from "../data/sampleBTS";
 
 // Perbaiki masalah icon Leaflet (untuk fallback)
 import icon from "leaflet/dist/images/marker-icon.png";
 import iconShadow from "leaflet/dist/images/marker-shadow.png";
-
-// Kategori lokasi
-const categories = [
-	{ id: "all", name: "Semua" },
-	{ id: "landmark", name: "Landmark" },
-	{ id: "museum", name: "Museum" },
 	{ id: "recreation", name: "Rekreasi" },
 	{ id: "government", name: "Pemerintahan" },
 ];
@@ -767,109 +772,114 @@ function LeafletMap() {
 				{/* Kotak pencarian */}
 				<div className='flex-1'>
 					<form onSubmit={searchLocation} className='flex gap-2'>
-						<input
+						<Input
 							type='text'
 							placeholder='Cari lokasi...'
-							className='flex-1 p-2 border rounded-md'
+							className='flex-1'
 							value={searchQuery}
 							onChange={(e) => setSearchQuery(e.target.value)}
 						/>
-						<button
-							type='submit'
-							className='px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600'
-						>
-							Cari
-						</button>
+						<Button type='submit'>Cari</Button>
 					</form>
 				</div>
 
 				{/* Tombol lokasi pengguna */}
-				<button
+				<Button
 					onClick={getUserLocation}
 					disabled={isLocating}
-					className='px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 disabled:bg-gray-400 disabled:cursor-not-allowed'
+					variant='secondary'
 				>
 					{isLocating ? "Mencari lokasi..." : "Lokasi Saya"}
-				</button>
+				</Button>
 			</div>
 
 			{/* BTS Controls */}
-			<div className='mb-4 p-4 border rounded-lg bg-white'>
-				<div className='flex justify-between items-center mb-3'>
-					<h3 className='font-semibold'>Base Transceiver Station (BTS)</h3>
-					<button
-						onClick={toggleBTSLayer}
-						disabled={isLoadingBTS}
-						className='px-4 py-2 bg-purple-500 text-white rounded-md hover:bg-purple-600 disabled:bg-gray-400 disabled:cursor-not-allowed'
-					>
-						{isLoadingBTS
-							? "Memuat..."
-							: showBTS
-							? "Sembunyikan BTS"
-							: "Tampilkan BTS"}
-					</button>
-				</div>
-
-				{/* Provider Filter */}
-				{showBTS && (
-					<div className='mb-3'>
-						<label className='block text-sm font-medium mb-1'>
-							Filter Provider:
-						</label>
-						<select
-							value={selectedProvider}
-							onChange={(e) => setSelectedProvider(e.target.value)}
-							className='w-full p-2 border rounded-md'
+			<Card className='mb-4'>
+				<CardHeader className='pb-3'>
+					<div className='flex justify-between items-center'>
+						<CardTitle className='text-xl'>
+							Base Transceiver Station (BTS)
+						</CardTitle>
+						<Button
+							onClick={toggleBTSLayer}
+							disabled={isLoadingBTS}
+							variant='default'
 						>
-							{providers.map((provider) => (
-								<option key={provider.id} value={provider.id}>
-									{provider.name}
-								</option>
-							))}
-						</select>
+							{isLoadingBTS
+								? "Memuat..."
+								: showBTS
+								? "Sembunyikan BTS"
+								: "Tampilkan BTS"}
+						</Button>
 					</div>
-				)}
+				</CardHeader>
+				<CardContent>
+					{/* Provider Filter */}
+					{showBTS && (
+						<div className='mb-3 space-y-2'>
+							<Label htmlFor='provider-select'>Filter Provider:</Label>
+							<Select
+								value={selectedProvider}
+								onValueChange={setSelectedProvider}
+							>
+								<SelectTrigger id='provider-select' className='w-full'>
+									<SelectValue placeholder='Pilih provider' />
+								</SelectTrigger>
+								<SelectContent>
+									{providers.map((provider) => (
+										<SelectItem key={provider.id} value={provider.id}>
+											{provider.name}
+										</SelectItem>
+									))}
+								</SelectContent>
+							</Select>
+						</div>
+					)}
 
-				{btsError && (
-					<div className='mt-2 p-2 bg-red-100 text-red-700 rounded-md text-sm'>
-						{btsError}
-					</div>
-				)}
+					{btsError && (
+						<div className='mt-2 p-2 bg-red-100 text-red-700 rounded-md text-sm'>
+							{btsError}
+						</div>
+					)}
 
-				{showBTS && btsCount > 0 && (
-					<div className='mt-2 p-2 bg-blue-100 text-blue-700 rounded-md text-sm'>
-						Menampilkan {btsData.length} dari {btsCount} BTS di area yang
-						terlihat.
-					</div>
-				)}
+					{showBTS && btsCount > 0 && (
+						<div className='mt-2 p-2 bg-blue-100 text-blue-700 rounded-md text-sm'>
+							Menampilkan {btsData.length} dari {btsCount} BTS di area yang
+							terlihat.
+						</div>
+					)}
 
-				{!showBTS && (
-					<p className='text-sm text-gray-600 mt-2'>
-						Klik tombol "Tampilkan BTS" untuk melihat lokasi Base Transceiver
-						Station (BTS) di area yang terlihat pada peta.
-					</p>
-				)}
-			</div>
+					{!showBTS && (
+						<p className='text-sm text-muted-foreground mt-2'>
+							Klik tombol "Tampilkan BTS" untuk melihat lokasi Base Transceiver
+							Station (BTS) di area yang terlihat pada peta.
+						</p>
+					)}
+				</CardContent>
+			</Card>
 
 			{/* Filter kategori */}
-			<div className='mb-4'>
-				<h3 className='font-semibold mb-2'>Filter Kategori:</h3>
-				<div className='flex flex-wrap gap-2'>
-					{categories.map((category) => (
-						<button
-							key={category.id}
-							onClick={() => setSelectedCategory(category.id)}
-							className={`px-3 py-1 rounded-full text-sm ${
-								selectedCategory === category.id
-									? "bg-blue-500 text-white"
-									: "bg-gray-200 text-gray-800 hover:bg-gray-300"
-							}`}
-						>
-							{category.name}
-						</button>
-					))}
-				</div>
-			</div>
+			<Card className='mb-4'>
+				<CardHeader className='pb-3'>
+					<CardTitle className='text-xl'>Filter Kategori</CardTitle>
+				</CardHeader>
+				<CardContent>
+					<div className='flex flex-wrap gap-2'>
+						{categories.map((category) => (
+							<Button
+								key={category.id}
+								onClick={() => setSelectedCategory(category.id)}
+								variant={
+									selectedCategory === category.id ? "default" : "outline"
+								}
+								size='sm'
+							>
+								{category.name}
+							</Button>
+						))}
+					</div>
+				</CardContent>
+			</Card>
 
 			{/* Container untuk peta */}
 			<div
@@ -963,61 +973,80 @@ function LeafletMap() {
 			)}
 
 			{/* Legenda kategori */}
-			<div className='bg-white p-4 rounded-lg border mt-4'>
-				<h3 className='font-semibold mb-2'>Legenda:</h3>
-				<div className='grid grid-cols-2 md:grid-cols-4 gap-2'>
-					{Object.entries(categoryColors).map(([category, color]) => (
-						<div key={category} className='flex items-center gap-2'>
+			<Card className='mt-4'>
+				<CardHeader className='pb-3'>
+					<CardTitle className='text-xl'>Legenda</CardTitle>
+				</CardHeader>
+				<CardContent>
+					<div className='grid grid-cols-2 md:grid-cols-4 gap-2'>
+						{Object.entries(categoryColors).map(([category]) => (
+							<div key={category} className='flex items-center gap-2'>
+								<div
+									className={`pulsing-dot ${category}`}
+									style={{ margin: "0 4px" }}
+								></div>
+								<span className='text-sm capitalize'>
+									{categories.find((c) => c.id === category)?.name || category}
+								</span>
+							</div>
+						))}
+						<div className='flex items-center gap-2'>
 							<div
-								className={`pulsing-dot ${category}`}
+								className='pulsing-dot search'
 								style={{ margin: "0 4px" }}
 							></div>
-							<span className='text-sm capitalize'>
-								{categories.find((c) => c.id === category)?.name || category}
-							</span>
+							<span className='text-sm'>Hasil Pencarian</span>
 						</div>
-					))}
-					<div className='flex items-center gap-2'>
-						<div
-							className='pulsing-dot search'
-							style={{ margin: "0 4px" }}
-						></div>
-						<span className='text-sm'>Hasil Pencarian</span>
+						<div className='flex items-center gap-2'>
+							<div
+								className='pulsing-dot user'
+								style={{ margin: "0 4px" }}
+							></div>
+							<span className='text-sm'>Lokasi Anda</span>
+						</div>
+						<div className='flex items-center gap-2'>
+							<img
+								src='https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-violet.png'
+								alt='BTS Tower'
+								style={{ width: "12px", height: "20px", margin: "0 4px" }}
+							/>
+							<span className='text-sm'>BTS Tower</span>
+						</div>
 					</div>
-					<div className='flex items-center gap-2'>
-						<div className='pulsing-dot user' style={{ margin: "0 4px" }}></div>
-						<span className='text-sm'>Lokasi Anda</span>
-					</div>
-					<div className='flex items-center gap-2'>
-						<img
-							src='https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-violet.png'
-							alt='BTS Tower'
-							style={{ width: "12px", height: "20px", margin: "0 4px" }}
-						/>
-						<span className='text-sm'>BTS Tower</span>
-					</div>
-				</div>
-			</div>
+				</CardContent>
+			</Card>
 
 			<div className='grid grid-cols-1 md:grid-cols-3 gap-4 mt-4'>
-				<div className='bg-white p-4 rounded-lg border'>
-					<h3 className='font-semibold mb-2'>Lokasi</h3>
-					<p className='text-sm text-gray-600'>
-						Lihat lokasi penting dan tempat menarik di sekitar Anda.
-					</p>
-				</div>
-				<div className='bg-white p-4 rounded-lg border'>
-					<h3 className='font-semibold mb-2'>Navigasi</h3>
-					<p className='text-sm text-gray-600'>
-						Dapatkan petunjuk arah dan navigasi ke tujuan Anda.
-					</p>
-				</div>
-				<div className='bg-white p-4 rounded-lg border'>
-					<h3 className='font-semibold mb-2'>Pencarian</h3>
-					<p className='text-sm text-gray-600'>
-						Cari lokasi, alamat, dan tempat menarik dengan mudah.
-					</p>
-				</div>
+				<Card>
+					<CardHeader className='pb-2'>
+						<CardTitle className='text-lg'>Lokasi</CardTitle>
+					</CardHeader>
+					<CardContent>
+						<p className='text-sm text-muted-foreground'>
+							Lihat lokasi penting dan tempat menarik di sekitar Anda.
+						</p>
+					</CardContent>
+				</Card>
+				<Card>
+					<CardHeader className='pb-2'>
+						<CardTitle className='text-lg'>Navigasi</CardTitle>
+					</CardHeader>
+					<CardContent>
+						<p className='text-sm text-muted-foreground'>
+							Dapatkan petunjuk arah dan navigasi ke tujuan Anda.
+						</p>
+					</CardContent>
+				</Card>
+				<Card>
+					<CardHeader className='pb-2'>
+						<CardTitle className='text-lg'>Pencarian</CardTitle>
+					</CardHeader>
+					<CardContent>
+						<p className='text-sm text-muted-foreground'>
+							Cari lokasi, alamat, dan tempat menarik dengan mudah.
+						</p>
+					</CardContent>
+				</Card>
 			</div>
 		</div>
 	);
