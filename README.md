@@ -1,12 +1,38 @@
-# React + Vite
+# Reach Dashboard
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A modern dashboard application built with React, Vite, and shadcn/ui components.
 
-Currently, two official plugins are available:
+## Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- Modern UI with shadcn/ui components
+- Authentication with login/logout functionality
+- Responsive layout with both navbar and sidebar options
+- Dark/light mode toggle
+- Interactive dashboard with charts and statistics
+- Protected routes for authenticated users
 
-## Expanding the ESLint configuration
+## Technology Stack
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+- React.js with Vite for fast development
+- React Router for navigation
+- Tailwind CSS for styling
+- Lucide React for icons
+- Recharts for data visualization
+
+## Getting Started
+
+```bash
+# Install dependencies
+npm install
+
+# Run development server
+npm run dev
+
+# Build for production
+npm run build
+```
+
+## Demo Credentials
+
+- Email: admin@example.com
+- Password: password
