@@ -7,6 +7,7 @@ import Analytics from "@/pages/Analytics";
 import Dashboard from "@/pages/Dashboard";
 import Home from "@/pages/Home";
 import Login from "@/pages/Login";
+import MapPage from "@/pages/MapPage";
 import NotFound from "@/pages/NotFound";
 import Settings from "@/pages/Settings";
 import { useState } from "react";
