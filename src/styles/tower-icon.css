@@ -52,6 +52,7 @@
 .radar-circle {
 	position: relative;
 	overflow: hidden;
+	border-radius: 50%;
 }
 
 .radar-sweep {
@@ -62,12 +63,13 @@
 	height: 100%;
 	border-radius: 50%;
 	background: conic-gradient(
-		rgba(255, 0, 255, 0.3) 0deg,
+		rgba(255, 0, 255, 0.15) 0deg,
 		rgba(255, 0, 255, 0) 30deg,
 		rgba(255, 0, 255, 0) 360deg
 	);
 	animation: radar-sweep 4s linear infinite;
 	transform-origin: center;
+	overflow: hidden;
 }
 
 @keyframes radar-sweep {
