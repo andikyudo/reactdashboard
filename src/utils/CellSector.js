@@ -16,7 +16,7 @@ export function createCellSectors(
 	// Buat container untuk semua sektor
 	const container = L.layerGroup().addTo(map);
 
-	// Buat lingkaran utama
+	// Buat lingkaran utama untuk cell ID
 	const circle = L.circle(latlng, {
 		radius: radius,
 		color: color,
@@ -24,24 +24,27 @@ export function createCellSectors(
 		fillOpacity: 0.05,
 		weight: 1,
 	}).addTo(container);
-
-	// Buat container untuk animasi radar
-	// Gunakan ukuran yang tepat sama dengan diameter lingkaran
-	const radarSize = radius * 2;
-
-	// Buat div icon dengan struktur yang lebih baik untuk clipping
-	const icon = L.divIcon({
-		className: "radar-container",
-		html: `
-			<div class="radar-circle" style="width: ${radarSize}px; height: ${radarSize}px;">
-				<div class="radar-sweep" style="width: ${radarSize}px; height: ${radarSize}px;"></div>
-			</div>
-		`,
-		iconSize: [radarSize, radarSize],
-		iconAnchor: [radarSize / 2, radarSize / 2],
-	});
-
-	L.marker(latlng, { icon }).addTo(container);
+  
+	// Buat marker untuk tower dan radar
+	// Pertama, buat marker untuk tower di tengah
+	const towerMarker = L.marker(latlng, {
+		icon: L.divIcon({
+			className: '',
+			html: '<div class="radar-tower"></div>',
+			iconSize: [24, 24],
+			iconAnchor: [12, 12]
+		})
+	}).addTo(container);
+  
+	// Kemudian, buat marker untuk radar yang ukurannya sama dengan cell ID
+	const radarMarker = L.marker(latlng, {
+		icon: L.divIcon({
+			className: 'radar-container',
+			html: `<div class="radar-sweep"></div>`,
+			iconSize: [radius * 2, radius * 2],
+			iconAnchor: [radius, radius]
+		})
+	}).addTo(container);
 
 	// Buat sektor-sektor
 	const sectorAngle = 360 / numSectors;
