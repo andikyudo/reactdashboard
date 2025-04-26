@@ -1,95 +1,149 @@
 .pulsing-dot {
-  border-radius: 50%;
-  height: 12px;
-  width: 12px;
-  transform-origin: center center;
-  animation: pulse 1.5s ease-in-out infinite;
+	border-radius: 50%;
+	height: 16px;
+	width: 16px;
+	transform-origin: center center;
+	animation: pulse 1.5s ease-in-out infinite;
+	box-shadow: 0 0 8px rgba(0, 0, 0, 0.5);
+	z-index: 10;
 }
 
 .pulsing-dot-container {
-  position: relative;
+	position: relative;
+	z-index: 1;
 }
 
+/* Gelombang pertama */
 .pulsing-dot-container::after {
-  content: '';
-  position: absolute;
-  border-radius: 50%;
-  height: 40px;
-  width: 40px;
-  top: -14px;
-  left: -14px;
-  animation: pulse-outer 1.5s ease-in-out infinite;
-  opacity: 0;
+	content: "";
+	position: absolute;
+	border-radius: 50%;
+	height: 60px;
+	width: 60px;
+	top: -22px;
+	left: -22px;
+	animation: pulse-outer-1 3s ease-out infinite;
+	opacity: 0;
+	z-index: 1;
+}
+
+/* Gelombang kedua */
+.pulsing-dot-container::before {
+	content: "";
+	position: absolute;
+	border-radius: 50%;
+	height: 40px;
+	width: 40px;
+	top: -12px;
+	left: -12px;
+	animation: pulse-outer-2 3s ease-out infinite;
+	animation-delay: 0.5s;
+	opacity: 0;
+	z-index: 2;
 }
 
 /* Warna untuk kategori berbeda */
 .pulsing-dot.landmark {
-  background-color: rgba(255, 0, 0, 0.8);
+	background-color: rgba(255, 0, 0, 0.8);
 }
 .pulsing-dot-container.landmark::after {
-  background-color: rgba(255, 0, 0, 0.3);
+	background-color: rgba(255, 0, 0, 0.3);
+}
+.pulsing-dot-container.landmark::before {
+	background-color: rgba(255, 0, 0, 0.4);
 }
 
 .pulsing-dot.museum {
-  background-color: rgba(128, 0, 128, 0.8);
+	background-color: rgba(128, 0, 128, 0.8);
 }
 .pulsing-dot-container.museum::after {
-  background-color: rgba(128, 0, 128, 0.3);
+	background-color: rgba(128, 0, 128, 0.3);
+}
+.pulsing-dot-container.museum::before {
+	background-color: rgba(128, 0, 128, 0.4);
 }
 
 .pulsing-dot.recreation {
-  background-color: rgba(255, 215, 0, 0.8);
+	background-color: rgba(255, 215, 0, 0.8);
 }
 .pulsing-dot-container.recreation::after {
-  background-color: rgba(255, 215, 0, 0.3);
+	background-color: rgba(255, 215, 0, 0.3);
+}
+.pulsing-dot-container.recreation::before {
+	background-color: rgba(255, 215, 0, 0.4);
 }
 
 .pulsing-dot.government {
-  background-color: rgba(255, 165, 0, 0.8);
+	background-color: rgba(255, 165, 0, 0.8);
 }
 .pulsing-dot-container.government::after {
-  background-color: rgba(255, 165, 0, 0.3);
+	background-color: rgba(255, 165, 0, 0.3);
+}
+.pulsing-dot-container.government::before {
+	background-color: rgba(255, 165, 0, 0.4);
 }
 
 .pulsing-dot.search {
-  background-color: rgba(0, 0, 255, 0.8);
+	background-color: rgba(0, 0, 255, 0.8);
 }
 .pulsing-dot-container.search::after {
-  background-color: rgba(0, 0, 255, 0.3);
+	background-color: rgba(0, 0, 255, 0.3);
+}
+.pulsing-dot-container.search::before {
+	background-color: rgba(0, 0, 255, 0.4);
 }
 
 .pulsing-dot.user {
-  background-color: rgba(0, 128, 0, 0.8);
+	background-color: rgba(0, 128, 0, 0.8);
 }
 .pulsing-dot-container.user::after {
-  background-color: rgba(0, 128, 0, 0.3);
+	background-color: rgba(0, 128, 0, 0.3);
+}
+.pulsing-dot-container.user::before {
+	background-color: rgba(0, 128, 0, 0.4);
 }
 
 @keyframes pulse {
-  0% {
-    transform: scale(1);
-  }
-  50% {
-    transform: scale(1.2);
-  }
-  100% {
-    transform: scale(1);
-  }
+	0% {
+		transform: scale(1);
+		box-shadow: 0 0 8px rgba(0, 0, 0, 0.5);
+	}
+	50% {
+		transform: scale(1.3);
+		box-shadow: 0 0 12px rgba(0, 0, 0, 0.7);
+	}
+	100% {
+		transform: scale(1);
+		box-shadow: 0 0 8px rgba(0, 0, 0, 0.5);
+	}
 }
 
-@keyframes pulse-outer {
-  0% {
-    transform: scale(0.5);
-    opacity: 0;
-  }
-  25% {
-    opacity: 0.3;
-  }
-  50% {
-    transform: scale(1);
-    opacity: 0;
-  }
-  100% {
-    opacity: 0;
-  }
+/* Animasi untuk gelombang pertama (lebih besar) */
+@keyframes pulse-outer-1 {
+	0% {
+		transform: scale(0.1);
+		opacity: 0.7;
+	}
+	50% {
+		opacity: 0.3;
+	}
+	100% {
+		transform: scale(1.2);
+		opacity: 0;
+	}
+}
+
+/* Animasi untuk gelombang kedua (lebih kecil) */
+@keyframes pulse-outer-2 {
+	0% {
+		transform: scale(0.1);
+		opacity: 0.5;
+	}
+	50% {
+		opacity: 0.2;
+	}
+	100% {
+		transform: scale(1);
+		opacity: 0;
+	}
 }
