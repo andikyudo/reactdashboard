@@ -6,8 +6,8 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import Analytics from "@/pages/Analytics";
 import Dashboard from "@/pages/Dashboard";
 import Home from "@/pages/Home";
+import LeafletMapPage from "@/pages/LeafletMapPage";
 import Login from "@/pages/Login";
-import MapPage from "@/pages/MapPage";
 import NotFound from "@/pages/NotFound";
 import Settings from "@/pages/Settings";
 import { useState } from "react";
@@ -91,7 +91,7 @@ function App() {
 						<Route path='reports' element={<Reports />} />
 						<Route path='users' element={<Users />} />
 						<Route path='statistics' element={<Statistics />} />
-						<Route path='map' element={<MapPage />} />
+						<Route path='map' element={<LeafletMapPage />} />
 						<Route path='calendar' element={<Calendar />} />
 						<Route path='messages' element={<Messages />} />
 						<Route path='settings' element={<Settings />} />
