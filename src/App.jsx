@@ -90,6 +90,7 @@ function App() {
 						<Route path='reports' element={<Reports />} />
 						<Route path='users' element={<Users />} />
 						<Route path='statistics' element={<Statistics />} />
+						<Route path='map' element={<MapPage />} />
 						<Route path='calendar' element={<Calendar />} />
 						<Route path='messages' element={<Messages />} />
 						<Route path='settings' element={<Settings />} />
