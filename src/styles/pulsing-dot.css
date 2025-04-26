@@ -1,0 +1,95 @@
+.pulsing-dot {
+  border-radius: 50%;
+  height: 12px;
+  width: 12px;
+  transform-origin: center center;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+.pulsing-dot-container {
+  position: relative;
+}
+
+.pulsing-dot-container::after {
+  content: '';
+  position: absolute;
+  border-radius: 50%;
+  height: 40px;
+  width: 40px;
+  top: -14px;
+  left: -14px;
+  animation: pulse-outer 1.5s ease-in-out infinite;
+  opacity: 0;
+}
+
+/* Warna untuk kategori berbeda */
+.pulsing-dot.landmark {
+  background-color: rgba(255, 0, 0, 0.8);
+}
+.pulsing-dot-container.landmark::after {
+  background-color: rgba(255, 0, 0, 0.3);
+}
+
+.pulsing-dot.museum {
+  background-color: rgba(128, 0, 128, 0.8);
+}
+.pulsing-dot-container.museum::after {
+  background-color: rgba(128, 0, 128, 0.3);
+}
+
+.pulsing-dot.recreation {
+  background-color: rgba(255, 215, 0, 0.8);
+}
+.pulsing-dot-container.recreation::after {
+  background-color: rgba(255, 215, 0, 0.3);
+}
+
+.pulsing-dot.government {
+  background-color: rgba(255, 165, 0, 0.8);
+}
+.pulsing-dot-container.government::after {
+  background-color: rgba(255, 165, 0, 0.3);
+}
+
+.pulsing-dot.search {
+  background-color: rgba(0, 0, 255, 0.8);
+}
+.pulsing-dot-container.search::after {
+  background-color: rgba(0, 0, 255, 0.3);
+}
+
+.pulsing-dot.user {
+  background-color: rgba(0, 128, 0, 0.8);
+}
+.pulsing-dot-container.user::after {
+  background-color: rgba(0, 128, 0, 0.3);
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.2);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes pulse-outer {
+  0% {
+    transform: scale(0.5);
+    opacity: 0;
+  }
+  25% {
+    opacity: 0.3;
+  }
+  50% {
+    transform: scale(1);
+    opacity: 0;
+  }
+  100% {
+    opacity: 0;
+  }
+}

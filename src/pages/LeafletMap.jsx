@@ -1,8 +1,12 @@
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import "../styles/pulsing-dot.css";
 import { useEffect, useRef, useState } from "react";
 
-// Perbaiki masalah icon Leaflet
+// Import PulsingDot
+import { createPulsingDotMarker } from "../utils/PulsingDot";
+
+// Perbaiki masalah icon Leaflet (untuk fallback)
 import icon from "leaflet/dist/images/marker-icon.png";
 import iconShadow from "leaflet/dist/images/marker-shadow.png";
 
@@ -158,13 +162,13 @@ function LeafletMap() {
 						(location) => location.category === selectedCategory
 				  );
 
-		// Tambahkan marker baru
+		// Tambahkan marker baru menggunakan PulsingDot
 		filteredLocations.forEach((location) => {
-			const markerIcon = getMarkerIcon(location.category);
-
-			const marker = L.marker([location.position.lat, location.position.lng], {
-				icon: markerIcon,
-			})
+			// Buat marker dengan PulsingDot
+			const marker = createPulsingDotMarker(
+				[location.position.lat, location.position.lng],
+				{ category: location.category }
+			)
 				.addTo(mapInstanceRef.current)
 				.bindPopup(
 					`<b>${location.name}</b><br>${
@@ -186,20 +190,10 @@ function LeafletMap() {
 
 		// Tambahkan marker untuk hasil pencarian
 		if (searchResult) {
-			const searchMarkerIcon = new L.Icon({
-				iconUrl:
-					"https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png",
-				shadowUrl:
-					"https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png",
-				iconSize: [25, 41],
-				iconAnchor: [12, 41],
-				popupAnchor: [1, -34],
-				shadowSize: [41, 41],
-			});
-
-			const searchMarker = L.marker(
+			// Buat marker dengan PulsingDot untuk hasil pencarian
+			const searchMarker = createPulsingDotMarker(
 				[searchResult.position.lat, searchResult.position.lng],
-				{ icon: searchMarkerIcon }
+				{ category: "search" }
 			)
 				.addTo(mapInstanceRef.current)
 				.bindPopup(`<b>${searchResult.name}</b>`);
@@ -213,20 +207,11 @@ function LeafletMap() {
 
 		// Tambahkan marker untuk lokasi pengguna
 		if (userLocation) {
-			const userMarkerIcon = new L.Icon({
-				iconUrl:
-					"https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png",
-				shadowUrl:
-					"https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png",
-				iconSize: [25, 41],
-				iconAnchor: [12, 41],
-				popupAnchor: [1, -34],
-				shadowSize: [41, 41],
-			});
-
-			const userMarker = L.marker([userLocation.lat, userLocation.lng], {
-				icon: userMarkerIcon,
-			})
+			// Buat marker dengan PulsingDot untuk lokasi pengguna
+			const userMarker = createPulsingDotMarker(
+				[userLocation.lat, userLocation.lng],
+				{ category: "user" }
+			)
 				.addTo(mapInstanceRef.current)
 				.bindPopup("<b>Lokasi Anda</b>");
 
@@ -321,22 +306,11 @@ function LeafletMap() {
 				setSearchResult(newLocation);
 				setSelectedLocation(newLocation);
 
-				// Tambahkan marker baru untuk hasil pencarian
+				// Tambahkan marker baru untuk hasil pencarian menggunakan PulsingDot
 				if (mapInstanceRef.current) {
-					const searchMarkerIcon = new L.Icon({
-						iconUrl:
-							"https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png",
-						shadowUrl:
-							"https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png",
-						iconSize: [25, 41],
-						iconAnchor: [12, 41],
-						popupAnchor: [1, -34],
-						shadowSize: [41, 41],
-					});
-
-					const searchMarker = L.marker(
+					const searchMarker = createPulsingDotMarker(
 						[newLocation.position.lat, newLocation.position.lng],
-						{ icon: searchMarkerIcon }
+						{ category: "search" }
 					)
 						.addTo(mapInstanceRef.current)
 						.bindPopup(`<b>${newLocation.name}</b>`)
@@ -501,7 +475,7 @@ function LeafletMap() {
 		}
 	};
 
-	// Mendapatkan icon marker berdasarkan kategori
+	// Mendapatkan icon marker berdasarkan kategori (untuk fallback)
 	const getMarkerIcon = (category) => {
 		const color = categoryColors[category] || "red";
 		return new L.Icon({
@@ -652,8 +626,8 @@ function LeafletMap() {
 					{selectedLocation.category && (
 						<p className='text-sm text-gray-600 mb-2'>
 							Kategori:{" "}
-							{categories.find((c) => c.id === selectedLocation.category)
-								?.name || selectedLocation.category}
+							{categories.find((c) => c.id === selectedLocation.category)?.name ||
+								selectedLocation.category}
 						</p>
 					)}
 					<p className='text-sm text-gray-600'>
@@ -669,21 +643,18 @@ function LeafletMap() {
 				<div className='grid grid-cols-2 md:grid-cols-4 gap-2'>
 					{Object.entries(categoryColors).map(([category, color]) => (
 						<div key={category} className='flex items-center gap-2'>
-							<div
-								className='w-4 h-4 rounded-full'
-								style={{ backgroundColor: color }}
-							></div>
+							<div className={`pulsing-dot ${category}`} style={{ margin: '0 4px' }}></div>
 							<span className='text-sm capitalize'>
 								{categories.find((c) => c.id === category)?.name || category}
 							</span>
 						</div>
 					))}
 					<div className='flex items-center gap-2'>
-						<div className='w-4 h-4 rounded-full bg-blue-500'></div>
+						<div className='pulsing-dot search' style={{ margin: '0 4px' }}></div>
 						<span className='text-sm'>Hasil Pencarian</span>
 					</div>
 					<div className='flex items-center gap-2'>
-						<div className='w-4 h-4 rounded-full bg-green-500'></div>
+						<div className='pulsing-dot user' style={{ margin: '0 4px' }}></div>
 						<span className='text-sm'>Lokasi Anda</span>
 					</div>
 				</div>
