@@ -2,9 +2,11 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { useEffect, useRef, useState } from "react";
 import "../styles/pulsing-dot.css";
+import "../styles/tower-icon.css";
 
 // Import PulsingDot
 import { createPulsingDotMarker } from "../utils/PulsingDot";
+// Import TowerIcon
 // Import BTS Service
 // Import sample BTS data
 import { sampleBTSData } from "../data/sampleBTS";
@@ -582,20 +584,79 @@ function LeafletMap() {
 				const lat = parseFloat(bts.lat);
 				const lon = parseFloat(bts.lon);
 
-				// Buat marker dengan PulsingDot untuk BTS
-				const marker = createPulsingDotMarker([lat, lon], {
-					category: "bts",
-				}).addTo(mapInstanceRef.current).bindPopup(`
-						<b>BTS ${bts.radio || ""}</b><br>
-						MCC: ${bts.mcc}<br>
-						MNC: ${bts.mnc}<br>
-						LAC: ${bts.lac}<br>
-						CellID: ${bts.cellid}<br>
-						Signal: ${bts.averageSignalStrength || "N/A"}<br>
-						Samples: ${bts.samples || "N/A"}
-					`);
+				// Buat marker dengan TowerIcon untuk BTS
+				const marker = createTowerMarker([lat, lon], {
+					signalStrength: bts.averageSignalStrength || -80,
+					cellRadius: bts.cellRadius || 500,
+				}).addTo(mapInstanceRef.current);
 
+				// Tambahkan tooltip untuk informasi singkat
+				marker.bindTooltip(
+					`${bts.radio || "BTS"} - ${bts.operator || "Unknown"}`,
+					{
+						permanent: false,
+						direction: "top",
+						className: "tower-tooltip",
+					}
+				);
+
+				// Tambahkan popup untuk informasi detail
+				marker.bindPopup(`
+					<div style="min-width: 200px;">
+						<h3 style="font-weight: bold; margin-bottom: 5px;">BTS ${bts.radio || ""}</h3>
+						<table style="width: 100%; border-collapse: collapse;">
+							<tr>
+								<td style="padding: 3px 0; font-weight: bold;">Operator:</td>
+								<td style="padding: 3px 0;">${bts.operator || "Unknown"}</td>
+							</tr>
+							<tr>
+								<td style="padding: 3px 0; font-weight: bold;">Frequency:</td>
+								<td style="padding: 3px 0;">${bts.frequency || "Unknown"}</td>
+							</tr>
+							<tr>
+								<td style="padding: 3px 0; font-weight: bold;">MCC:</td>
+								<td style="padding: 3px 0;">${bts.mcc}</td>
+							</tr>
+							<tr>
+								<td style="padding: 3px 0; font-weight: bold;">MNC:</td>
+								<td style="padding: 3px 0;">${bts.mnc}</td>
+							</tr>
+							<tr>
+								<td style="padding: 3px 0; font-weight: bold;">LAC:</td>
+								<td style="padding: 3px 0;">${bts.lac}</td>
+							</tr>
+							<tr>
+								<td style="padding: 3px 0; font-weight: bold;">Cell ID:</td>
+								<td style="padding: 3px 0;">${bts.cellid}</td>
+							</tr>
+							<tr>
+								<td style="padding: 3px 0; font-weight: bold;">Signal:</td>
+								<td style="padding: 3px 0;">${bts.averageSignalStrength || "N/A"} dBm</td>
+							</tr>
+							<tr>
+								<td style="padding: 3px 0; font-weight: bold;">Coverage:</td>
+								<td style="padding: 3px 0;">${bts.cellRadius || "Unknown"} m</td>
+							</tr>
+							<tr>
+								<td style="padding: 3px 0; font-weight: bold;">Samples:</td>
+								<td style="padding: 3px 0;">${bts.samples || "N/A"}</td>
+							</tr>
+						</table>
+					</div>
+				`);
+
+				// Tambahkan circle untuk menampilkan radius pancaran
+				const circle = L.circle([lat, lon], {
+					radius: bts.cellRadius || 500,
+					color: "rgba(255, 0, 255, 0.5)",
+					fillColor: "rgba(255, 0, 255, 0.1)",
+					fillOpacity: 0.3,
+					weight: 1,
+				}).addTo(mapInstanceRef.current);
+
+				// Simpan marker dan circle
 				btsMarkersRef.current.push(marker);
+				btsMarkersRef.current.push(circle);
 			} catch (error) {
 				console.error("Error adding BTS marker:", error, bts);
 			}
@@ -841,8 +902,11 @@ function LeafletMap() {
 						<span className='text-sm'>Lokasi Anda</span>
 					</div>
 					<div className='flex items-center gap-2'>
-						<div className='pulsing-dot bts' style={{ margin: "0 4px" }}></div>
-						<span className='text-sm'>BTS</span>
+						<div
+							className='tower-icon'
+							style={{ width: "16px", height: "16px", margin: "0 4px" }}
+						></div>
+						<span className='text-sm'>BTS Tower</span>
 					</div>
 				</div>
 			</div>
