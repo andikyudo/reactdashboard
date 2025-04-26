@@ -57,3 +57,24 @@ body {
 	margin: 0 auto;
 	padding: 0 1rem;
 }
+
+/* Perbaikan untuk dropdown Select */
+[data-radix-popper-content-wrapper] {
+	z-index: 9999 !important;
+}
+
+.select-content {
+	background-color: var(--background) !important;
+	border: 1px solid var(--border) !important;
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Pastikan dropdown selalu di atas konten lain */
+.select-content[data-state="open"] {
+	z-index: 9999 !important;
+}
+
+/* Pastikan background solid */
+.select-content .select-viewport {
+	background-color: var(--background) !important;
+}

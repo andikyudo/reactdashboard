@@ -823,7 +823,7 @@ function LeafletMap() {
 								<SelectTrigger id='provider-select' className='w-full'>
 									<SelectValue placeholder='Pilih provider' />
 								</SelectTrigger>
-								<SelectContent>
+								<SelectContent className='select-content'>
 									{providers.map((provider) => (
 										<SelectItem key={provider.id} value={provider.id}>
 											{provider.name}
