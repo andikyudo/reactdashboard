@@ -7,15 +7,15 @@ import "../styles/tower-icon.css";
 // Import shadcn/ui components
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { 
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from "@/components/ui/select";
-import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select";
 
 // Import PulsingDot
 import { createPulsingDotMarker } from "../utils/PulsingDot";
@@ -122,9 +122,6 @@ function LeafletMap() {
 	const [showBTS, setShowBTS] = useState(false);
 	const [btsData, setBtsData] = useState([]);
 	const [btsCount, setBtsCount] = useState(0);
-	const [btsApiKey, setBtsApiKey] = useState(
-		"pk.ac9c55b0a7bb0fe373bbb8ff3327be64"
-	);
 	const [isLoadingBTS, setIsLoadingBTS] = useState(false);
 	const [btsError, setBtsError] = useState(null);
 	const [selectedProvider, setSelectedProvider] = useState("all");
@@ -201,6 +198,7 @@ function LeafletMap() {
 				mapInstanceRef.current = null;
 			}
 		};
+		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []);
 
 	// Tambahkan marker ke peta
@@ -283,6 +281,7 @@ function LeafletMap() {
 	// Update marker ketika kategori berubah
 	useEffect(() => {
 		addMarkersToMap();
+		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [selectedCategory, searchResult, userLocation]);
 
 	// Update BTS markers ketika provider berubah
@@ -291,6 +290,7 @@ function LeafletMap() {
 			console.log("Provider changed, reloading BTS data");
 			loadBTSData();
 		}
+		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [selectedProvider]);
 
 	// Handler untuk klik pada marker
@@ -538,20 +538,6 @@ function LeafletMap() {
 			mapInstanceRef.current.removeLayer(routeLayerRef.current);
 			routeLayerRef.current = null;
 		}
-	};
-
-	// Mendapatkan icon marker berdasarkan kategori (untuk fallback)
-	const getMarkerIcon = (category) => {
-		const color = categoryColors[category] || "red";
-		return new L.Icon({
-			iconUrl: `https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-${color}.png`,
-			shadowUrl:
-				"https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png",
-			iconSize: [25, 41],
-			iconAnchor: [12, 41],
-			popupAnchor: [1, -34],
-			shadowSize: [41, 41],
-		});
 	};
 
 	// Fungsi untuk memuat data BTS
