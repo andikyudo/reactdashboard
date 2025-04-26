@@ -7,7 +7,6 @@ import "../styles/tower-icon.css";
 // Import PulsingDot
 import { createPulsingDotMarker } from "../utils/PulsingDot";
 // Import TowerIcon
-import { createTowerMarker } from "../utils/TowerIcon";
 // Import BTS Service
 // Import sample BTS data
 import { sampleBTSData } from "../data/sampleBTS";
@@ -595,10 +594,18 @@ function LeafletMap() {
 				const lat = parseFloat(bts.lat);
 				const lon = parseFloat(bts.lon);
 
-				// Buat marker dengan TowerIcon untuk BTS
-				const marker = createTowerMarker([lat, lon], {
-					signalStrength: bts.averageSignalStrength || -80,
-					cellRadius: bts.cellRadius || 500,
+				// Buat marker standar untuk BTS
+				const marker = L.marker([lat, lon], {
+					icon: new L.Icon({
+						iconUrl:
+							"https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-violet.png",
+						shadowUrl:
+							"https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png",
+						iconSize: [25, 41],
+						iconAnchor: [12, 41],
+						popupAnchor: [1, -34],
+						shadowSize: [41, 41],
+					}),
 				}).addTo(mapInstanceRef.current);
 
 				// Tambahkan tooltip untuk informasi singkat
@@ -919,10 +926,11 @@ function LeafletMap() {
 						<span className='text-sm'>Lokasi Anda</span>
 					</div>
 					<div className='flex items-center gap-2'>
-						<div
-							className='tower-icon'
-							style={{ width: "16px", height: "16px", margin: "0 4px" }}
-						></div>
+						<img
+							src='https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-violet.png'
+							alt='BTS Tower'
+							style={{ width: "12px", height: "20px", margin: "0 4px" }}
+						/>
 						<span className='text-sm'>BTS Tower</span>
 					</div>
 				</div>
