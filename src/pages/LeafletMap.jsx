@@ -7,6 +7,8 @@ import "../styles/tower-icon.css";
 // Import PulsingDot
 import { createPulsingDotMarker } from "../utils/PulsingDot";
 // Import TowerIcon
+// Import Cell Sector
+import { createCellSectors } from "../utils/CellSector";
 // Import BTS Service
 // Import sample BTS data
 import { sampleBTSData } from "../data/sampleBTS";
@@ -663,18 +665,26 @@ function LeafletMap() {
 					</div>
 				`);
 
-				// Tambahkan circle untuk menampilkan radius pancaran
-				const circle = L.circle([lat, lon], {
-					radius: bts.cellRadius || 500,
-					color: "rgba(255, 0, 255, 0.5)",
-					fillColor: "rgba(255, 0, 255, 0.1)",
-					fillOpacity: 0.3,
-					weight: 1,
-				}).addTo(mapInstanceRef.current);
+				// Tambahkan sektor cell ID dengan animasi radar
+				const cellSectors = createCellSectors(
+					mapInstanceRef.current,
+					[lat, lon],
+					bts.cellRadius || 500,
+					6, // Jumlah sektor
+					{
+						color: "rgba(255, 0, 255, 0.5)",
+						fillColor: "rgba(255, 0, 255, 0.1)",
+					}
+				);
 
-				// Simpan marker dan circle
+				// Simpan marker dan sektor
 				btsMarkersRef.current.push(marker);
-				btsMarkersRef.current.push(circle);
+				// Tambahkan semua layer dari cellSectors ke btsMarkersRef
+				if (cellSectors && cellSectors.getLayers) {
+					cellSectors.getLayers().forEach((layer) => {
+						btsMarkersRef.current.push(layer);
+					});
+				}
 			} catch (error) {
 				console.error("Error adding BTS marker:", error, bts);
 			}
