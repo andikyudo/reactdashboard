@@ -591,3 +591,46 @@ export const generateFallbackBTSData = (bounds) => {
 	console.log("Generated fallback BTS data:", { cells });
 	return { cells };
 };
+
+// 1.2 API Geolokasi - Mencari menara BTS berdasarkan parameter (MCC, MNC, LAC, Cell ID)
+export const searchCellTowersByParams = async (params, bounds) => {
+	try {
+		console.log("Searching cell towers with parameters:", params);
+
+		// Validasi bounds
+		if (!bounds || typeof bounds.getSouth !== "function") {
+			console.error("Invalid bounds object:", bounds);
+			throw new Error("Batas peta tidak valid");
+		}
+
+		// Buat objek options untuk searchCellTowers
+		const options = {};
+
+		// Tambahkan parameter yang valid
+		if (params.mcc && !isNaN(parseInt(params.mcc))) {
+			options.mcc = parseInt(params.mcc);
+		}
+
+		if (params.mnc && !isNaN(parseInt(params.mnc))) {
+			options.mnc = parseInt(params.mnc);
+		}
+
+		if (params.lac && !isNaN(parseInt(params.lac))) {
+			options.lac = parseInt(params.lac);
+		}
+
+		if (params.cellid && !isNaN(parseInt(params.cellid))) {
+			options.cellid = parseInt(params.cellid);
+		}
+
+		console.log("Search options:", options);
+
+		// Gunakan fungsi searchCellTowers dengan parameter yang diberikan
+		const result = await searchCellTowers(bounds, options);
+		console.log("Parameter search result:", result);
+		return result;
+	} catch (error) {
+		console.error("Error searching cell towers by parameters:", error);
+		throw error;
+	}
+};

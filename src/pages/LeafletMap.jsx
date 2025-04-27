@@ -27,8 +27,6 @@ import { btsCache, searchCellTowers } from "../services/locationApi";
 // Import Unwired Labs API service
 import { searchCellTowers as unwiredSearchCellTowers } from "../services/unwiredLabsApi";
 
-// Import komponen baru untuk Unwired Labs API
-
 import icon from "leaflet/dist/images/marker-icon.png";
 import iconShadow from "leaflet/dist/images/marker-shadow.png";
 
@@ -848,6 +846,23 @@ function LeafletMap() {
 				const popupContent = `
 					<div style="min-width: 200px;">
 						<h3 style="font-weight: bold; margin-bottom: 5px;">BTS ${bts.radio || ""}</h3>
+
+						<!-- Highlight LAC dan Cell ID di bagian atas -->
+						<div style="background-color: #f0f7ff; border: 1px solid #cce5ff; border-radius: 4px; padding: 8px; margin-bottom: 10px;">
+							<div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+								<span style="font-weight: bold; color: #0066cc;">LAC:</span>
+								<span style="font-weight: bold; color: #0066cc; font-size: 14px;">${
+									bts.lac || "N/A"
+								}</span>
+							</div>
+							<div style="display: flex; justify-content: space-between;">
+								<span style="font-weight: bold; color: #0066cc;">Cell ID:</span>
+								<span style="font-weight: bold; color: #0066cc; font-size: 14px;">${
+									bts.cellid || "N/A"
+								}</span>
+							</div>
+						</div>
+
 						<table style="width: 100%; border-collapse: collapse;">
 							<tr>
 								<td style="padding: 3px 0; font-weight: bold;">Operator:</td>
@@ -864,14 +879,6 @@ function LeafletMap() {
 							<tr>
 								<td style="padding: 3px 0; font-weight: bold;">MNC:</td>
 								<td style="padding: 3px 0;">${bts.mnc}</td>
-							</tr>
-							<tr>
-								<td style="padding: 3px 0; font-weight: bold;">LAC:</td>
-								<td style="padding: 3px 0;">${bts.lac}</td>
-							</tr>
-							<tr>
-								<td style="padding: 3px 0; font-weight: bold;">Cell ID:</td>
-								<td style="padding: 3px 0;">${bts.cellid}</td>
 							</tr>
 							<tr>
 								<td style="padding: 3px 0; font-weight: bold;">Signal:</td>
@@ -1771,7 +1778,89 @@ function LeafletMap() {
 				</div>
 			)}
 
-			{/* LAC Search - Removed for simplicity */}
+			{/* LAC Search */}
+			{useUnwiredLabs && (
+				<div className='mt-4'>
+					<LACSearch
+						mapInstance={mapInstanceRef.current}
+						onSearchComplete={(result) => {
+							console.log("LAC search completed with result:", result);
+							try {
+								if (result && result.cells && result.cells.length > 0) {
+									console.log(`Processing ${result.cells.length} BTS results`);
+
+									// Tampilkan hasil pencarian
+									setBtsData(result.cells);
+									setBtsCount(result.cells.length);
+
+									// Hapus marker yang ada
+									clearBTSMarkers();
+
+									// Tambahkan marker baru
+									addBTSMarkersToMap(result.cells);
+
+									// Sesuaikan tampilan peta untuk menampilkan semua marker
+									if (mapInstanceRef.current && result.cells.length > 0) {
+										console.log("Adjusting map view to show all markers");
+										const bounds = L.latLngBounds(
+											result.cells.map((cell) => [cell.lat, cell.lon])
+										);
+										mapInstanceRef.current.fitBounds(bounds, {
+											padding: [50, 50],
+										});
+									}
+								} else {
+									console.log("No BTS results found or invalid result format");
+								}
+							} catch (error) {
+								console.error("Error processing LAC search results:", error);
+							}
+						}}
+					/>
+				</div>
+			)}
+
+			{/* Cell Search */}
+			{useUnwiredLabs && (
+				<div className='mt-4'>
+					<CellSearch
+						mapInstance={mapInstanceRef.current}
+						onSearchComplete={(result) => {
+							console.log("Cell search completed with result:", result);
+							try {
+								if (result && result.cells && result.cells.length > 0) {
+									console.log(`Processing ${result.cells.length} BTS results`);
+
+									// Tampilkan hasil pencarian
+									setBtsData(result.cells);
+									setBtsCount(result.cells.length);
+
+									// Hapus marker yang ada
+									clearBTSMarkers();
+
+									// Tambahkan marker baru
+									addBTSMarkersToMap(result.cells);
+
+									// Sesuaikan tampilan peta untuk menampilkan semua marker
+									if (mapInstanceRef.current && result.cells.length > 0) {
+										console.log("Adjusting map view to show all markers");
+										const bounds = L.latLngBounds(
+											result.cells.map((cell) => [cell.lat, cell.lon])
+										);
+										mapInstanceRef.current.fitBounds(bounds, {
+											padding: [50, 50],
+										});
+									}
+								} else {
+									console.log("No BTS results found or invalid result format");
+								}
+							} catch (error) {
+								console.error("Error processing Cell search results:", error);
+							}
+						}}
+					/>
+				</div>
+			)}
 
 			{/* Static Map - Removed for simplicity */}
 
