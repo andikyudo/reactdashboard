@@ -16,15 +16,19 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 
 // Import PulsingDot
 import { createPulsingDotMarker } from "../utils/PulsingDot";
 // Import Cell Sector
 import { createCellSectors } from "../utils/CellSector";
-// Import sample BTS data
-import { sampleBTSData } from "../data/sampleBTS";
+// Import LocationAPI service
+import { btsCache, searchCellTowers } from "../services/locationApi";
+// Import Unwired Labs API service
+import { searchCellTowers as unwiredSearchCellTowers } from "../services/unwiredLabsApi";
 
-// Perbaiki masalah icon Leaflet (untuk fallback)
+// Import komponen baru untuk Unwired Labs API
+
 import icon from "leaflet/dist/images/marker-icon.png";
 import iconShadow from "leaflet/dist/images/marker-shadow.png";
 
@@ -104,6 +108,21 @@ const travelModes = [
 	{ id: "bicycle", name: "Sepeda" },
 ];
 
+// Fungsi untuk mendapatkan warna berdasarkan operator
+// eslint-disable-next-line no-unused-vars
+const getOperatorColor = (operator) => {
+	const colors = {
+		Telkomsel: "rgb(255, 0, 0)", // Merah
+		"XL Axiata": "rgb(0, 0, 255)", // Biru
+		Indosat: "rgb(255, 165, 0)", // Oranye
+		Tri: "rgb(128, 0, 128)", // Ungu
+		Axis: "rgb(0, 128, 0)", // Hijau
+		Smartfren: "rgb(255, 0, 255)", // Magenta
+	};
+
+	return colors[operator] || "rgb(128, 128, 128)"; // Abu-abu sebagai default
+};
+
 function LeafletMap() {
 	const [selectedLocation, setSelectedLocation] = useState(null);
 	const [searchQuery, setSearchQuery] = useState("");
@@ -125,6 +144,12 @@ function LeafletMap() {
 	const [isLoadingBTS, setIsLoadingBTS] = useState(false);
 	const [btsError, setBtsError] = useState(null);
 	const [selectedProvider, setSelectedProvider] = useState("all");
+
+	// State untuk fitur Unwired Labs
+	const [useUnwiredLabs, setUseUnwiredLabs] = useState(false); // Toggle untuk menggunakan API Unwired Labs
+	const [selectedBTSLocation, setSelectedBTSLocation] = useState(null); // Lokasi BTS yang dipilih untuk detail
+	const [showStaticMap, setShowStaticMap] = useState(false); // Toggle untuk menampilkan peta statis
+	const [showApiBalance, setShowApiBalance] = useState(false); // Toggle untuk menampilkan saldo API
 
 	// Daftar provider yang tersedia
 	const providers = [
@@ -174,21 +199,28 @@ function LeafletMap() {
 			// Tambahkan marker untuk lokasi
 			addMarkersToMap();
 
+			// PENTING: Set showBTS ke true secara default
+			setShowBTS(true);
+
 			// Tambahkan event listener untuk perubahan zoom dan pan
+			// Gunakan event moveend untuk memperbarui marker BTS secara otomatis
 			mapInstanceRef.current.on("moveend", () => {
-				console.log("Map moved, showBTS:", showBTS);
-				if (showBTS) {
+				console.log("Map moved, updating BTS markers automatically");
+				// Selalu muat data BTS saat peta bergerak, tanpa memeriksa showBTS
+				// Gunakan setTimeout untuk memastikan state showBTS sudah diperbarui
+				setTimeout(() => {
 					loadBTSData();
-				}
+				}, 10);
 			});
 
-			// Muat BTS secara otomatis setelah peta dimuat
-			console.log("Setting up automatic BTS loading");
+			// Muat BTS secara otomatis segera setelah peta dimuat
+			console.log("Loading BTS data immediately after map initialization");
+
+			// Gunakan setTimeout untuk memastikan state showBTS sudah diperbarui
 			setTimeout(() => {
-				console.log("Auto-loading BTS data");
-				setShowBTS(true);
+				console.log("Executing delayed BTS data load, showBTS:", showBTS);
 				loadBTSData();
-			}, 2000);
+			}, 100);
 		}
 
 		// Cleanup function
@@ -290,14 +322,73 @@ function LeafletMap() {
 
 	// Update BTS markers ketika provider berubah
 	useEffect(() => {
-		if (showBTS) {
-			console.log("Provider changed, reloading BTS data");
+		console.log("Provider changed to:", selectedProvider);
+
+		// Selalu muat data BTS ketika provider berubah, bahkan jika showBTS dimatikan
+		// Ini memastikan data selalu difilter dengan benar
+		if (btsData && btsData.length > 0) {
+			console.log("Filtering existing BTS data for new provider");
+
+			// Jika ada data yang sudah dimuat, filter berdasarkan provider baru
+			if (selectedProvider !== "all") {
+				// Filter data berdasarkan provider baru
+				const filteredBTS = btsData.filter(
+					(bts) => bts.operator === selectedProvider
+				);
+				console.log(
+					`Filtered BTS for provider ${selectedProvider}:`,
+					filteredBTS.length
+				);
+
+				// Update data BTS yang difilter
+				setBtsData(filteredBTS);
+
+				// Jika showBTS diaktifkan, perbarui marker
+				if (showBTS) {
+					clearBTSMarkers();
+					addBTSMarkersToMap(filteredBTS);
+				}
+			} else {
+				// Jika provider "all", muat ulang semua data
+				console.log("Loading all BTS data for all providers");
+				loadBTSData();
+			}
+		} else {
+			// Jika belum ada data, muat data baru
+			console.log("No existing BTS data, loading fresh data");
 			loadBTSData();
 		}
 		/* eslint-disable react-hooks/exhaustive-deps */
-		// Kita sengaja tidak menambahkan loadBTSData dan showBTS sebagai dependencies
+		// Kita sengaja tidak menambahkan loadBTSData, showBTS, dan btsData sebagai dependencies
 		// karena akan menyebabkan re-render yang tidak perlu
 	}, [selectedProvider]);
+
+	// Handle perubahan useUnwiredLabs
+	useEffect(() => {
+		console.log("useUnwiredLabs changed to:", useUnwiredLabs);
+
+		// Reset state terkait BTS
+		setSelectedBTSLocation(null);
+		setShowStaticMap(false);
+
+		// Jika showBTS aktif, muat ulang data BTS
+		if (showBTS) {
+			// Hapus marker yang ada
+			clearBTSMarkers();
+
+			// Muat ulang data BTS dengan API yang baru
+			// Gunakan setTimeout untuk memastikan state sudah diperbarui
+			setTimeout(() => {
+				console.log("Reloading BTS data after API toggle");
+				try {
+					loadBTSData();
+				} catch (error) {
+					console.error("Error loading BTS data after API toggle:", error);
+				}
+			}, 300);
+		}
+		/* eslint-disable react-hooks/exhaustive-deps */
+	}, [useUnwiredLabs]);
 
 	// Handler untuk klik pada marker
 	const handleMarkerClick = (location) => {
@@ -548,7 +639,15 @@ function LeafletMap() {
 
 	// Fungsi untuk memuat data BTS
 	const loadBTSData = async () => {
-		if (!mapInstanceRef.current) return;
+		if (!mapInstanceRef.current) {
+			console.log("Map instance not available, skipping BTS data load");
+			return;
+		}
+
+		// PENTING: Selalu muat data BTS, bahkan jika showBTS dimatikan
+		// Ini memastikan data selalu dimuat saat peta bergerak
+		// Kita hanya akan menyembunyikan marker jika showBTS dimatikan
+		console.log("Loading BTS data, showBTS state:", showBTS);
 
 		try {
 			setIsLoadingBTS(true);
@@ -556,29 +655,116 @@ function LeafletMap() {
 
 			// Dapatkan batas peta saat ini
 			const bounds = mapInstanceRef.current.getBounds();
-
 			console.log("Current map bounds:", bounds);
 
-			// Gunakan data sampel BTS alih-alih API
-			console.log("Using sample BTS data:", sampleBTSData);
+			// Dapatkan zoom level saat ini
+			const zoomLevel = mapInstanceRef.current.getZoom();
+			console.log("Current zoom level:", zoomLevel);
 
-			// Pastikan data BTS ada
-			if (
-				!sampleBTSData ||
-				!sampleBTSData.cells ||
-				!Array.isArray(sampleBTSData.cells)
-			) {
-				console.error("Invalid BTS data structure:", sampleBTSData);
-				setBtsError("Data BTS tidak valid");
+			// Buat key cache berdasarkan bounds dan zoom level
+			// Tidak menggunakan selectedProvider untuk memastikan data selalu dimuat
+			const cacheKey = `${bounds.getNorth().toFixed(4)}_${bounds
+				.getSouth()
+				.toFixed(4)}_${bounds.getEast().toFixed(4)}_${bounds
+				.getWest()
+				.toFixed(4)}_${zoomLevel}`;
+
+			// Cek apakah data ada di cache
+			const cachedData = btsCache.get(cacheKey);
+			if (cachedData) {
+				console.log("Using cached BTS data for current view");
+
+				// Set data BTS dari cache
+				setBtsCount(cachedData.cells.length);
+
+				// Filter data berdasarkan provider jika diperlukan
+				let filteredBTS = cachedData.cells;
+				if (selectedProvider !== "all") {
+					filteredBTS = cachedData.cells.filter(
+						(bts) => bts.operator === selectedProvider
+					);
+					console.log(
+						`Filtered cached BTS for provider ${selectedProvider}:`,
+						filteredBTS.length
+					);
+				}
+
+				setBtsData(filteredBTS);
+
+				// Hanya tampilkan marker jika showBTS diaktifkan
+				if (showBTS) {
+					addBTSMarkersToMap(filteredBTS);
+				}
+
+				setIsLoadingBTS(false);
 				return;
 			}
 
+			// Gunakan data BTS dari API
+			let btsData;
+
+			try {
+				// Pilih API berdasarkan useUnwiredLabs
+				if (useUnwiredLabs) {
+					try {
+						// Gunakan Unwired Labs API
+						console.log("Fetching BTS data from Unwired Labs API");
+						btsData = await unwiredSearchCellTowers(bounds);
+						console.log("Unwired Labs API response processed:", btsData);
+					} catch (unwiredError) {
+						console.error(
+							"Error fetching from Unwired Labs API:",
+							unwiredError
+						);
+						// Fallback ke LocationAPI jika Unwired Labs API gagal
+						console.log("Falling back to LocationAPI");
+						btsData = await searchCellTowers(bounds);
+					}
+				} else {
+					// Gunakan LocationAPI
+					console.log("Fetching BTS data from LocationAPI");
+					btsData = await searchCellTowers(bounds);
+				}
+
+				console.log("API response processed:", btsData);
+
+				// Jika tidak ada data dari API, tampilkan error
+				if (!btsData || !btsData.cells || btsData.cells.length === 0) {
+					console.log("No data from API");
+					setBtsError("Tidak ada data BTS yang ditemukan di area ini");
+					clearBTSMarkers(); // Hapus marker yang ada jika tidak ada data baru
+					setIsLoadingBTS(false);
+					return;
+				}
+			} catch (apiError) {
+				console.error("Error fetching from API:", apiError);
+				setBtsError(`Error: ${apiError.message || "Gagal memuat data BTS"}`);
+				clearBTSMarkers();
+				setIsLoadingBTS(false);
+				return;
+			}
+
+			// Pastikan data BTS ada
+			if (!btsData || !btsData.cells || !Array.isArray(btsData.cells)) {
+				console.error("Invalid BTS data structure:", btsData);
+				setBtsError("Data BTS tidak valid");
+				clearBTSMarkers();
+				setIsLoadingBTS(false);
+				return;
+			}
+
+			// Simpan semua data ke cache terlebih dahulu
+			btsCache.set(cacheKey, { cells: btsData.cells });
+
+			// Set total count
+			setBtsCount(btsData.cells.length);
+
 			// Filter BTS berdasarkan provider yang dipilih
-			let filteredBTS = sampleBTSData.cells;
+			let filteredBTS = btsData.cells;
 
 			// Jika provider yang dipilih bukan "all", filter berdasarkan provider
 			if (selectedProvider !== "all") {
-				filteredBTS = sampleBTSData.cells.filter(
+				filteredBTS = btsData.cells.filter(
 					(bts) => bts.operator === selectedProvider
 				);
 				console.log(
@@ -589,12 +775,14 @@ function LeafletMap() {
 				console.log("Showing all BTS providers");
 			}
 
-			// Set data BTS
-			setBtsCount(sampleBTSData.cells.length);
+			// Set data BTS yang difilter
 			setBtsData(filteredBTS);
 
-			// Tambahkan marker BTS ke peta
-			addBTSMarkersToMap(filteredBTS);
+			// Hanya tampilkan marker jika showBTS diaktifkan
+			if (showBTS) {
+				// Tambahkan marker BTS ke peta
+				addBTSMarkersToMap(filteredBTS);
+			}
 
 			console.log("BTS data loaded successfully");
 		} catch (error) {
@@ -657,7 +845,7 @@ function LeafletMap() {
 				);
 
 				// Tambahkan popup untuk informasi detail
-				marker.bindPopup(`
+				const popupContent = `
 					<div style="min-width: 200px;">
 						<h3 style="font-weight: bold; margin-bottom: 5px;">BTS ${bts.radio || ""}</h3>
 						<table style="width: 100%; border-collapse: collapse;">
@@ -694,33 +882,448 @@ function LeafletMap() {
 								<td style="padding: 3px 0;">${bts.cellRadius || "Unknown"} m</td>
 							</tr>
 							<tr>
+								<td style="padding: 3px 0; font-weight: bold;">Accuracy:</td>
+								<td style="padding: 3px 0;">${bts.accuracy || "Unknown"} m</td>
+							</tr>
+							<tr>
 								<td style="padding: 3px 0; font-weight: bold;">Samples:</td>
 								<td style="padding: 3px 0;">${bts.samples || "N/A"}</td>
 							</tr>
 						</table>
+						<div style="margin-top: 10px;">
+							<button id="btn-get-details-${
+								bts.cellid
+							}" style="background-color: #6366f1; color: white; padding: 5px 10px; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;">
+								Dapatkan Detail Lokasi
+							</button>
+							<div id="location-details-${
+								bts.cellid
+							}" style="margin-top: 8px; font-size: 12px; display: none;">
+								<p><strong>Mencari detail lokasi...</strong></p>
+							</div>
+						</div>
 					</div>
-				`);
+				`;
 
-				// Tambahkan sektor cell ID
-				const cellSectors = createCellSectors(
-					mapInstanceRef.current,
-					[lat, lon],
-					bts.cellRadius || 500,
-					6, // Jumlah sektor
-					{
-						color: "rgba(128, 0, 128, 0.5)", // Warna ungu yang lebih lembut
-						fillColor: "rgba(128, 0, 128, 0.1)",
+				marker.bindPopup(popupContent);
+
+				// Tambahkan event listener untuk tombol detail
+				marker.on("popupopen", () => {
+					// Jika menggunakan Unwired Labs API, simpan lokasi BTS yang dipilih
+					if (useUnwiredLabs) {
+						setSelectedBTSLocation({
+							lat: bts.lat,
+							lon: bts.lon,
+							operator: bts.operator,
+							radio: bts.radio,
+							cellid: bts.cellid,
+							lac: bts.lac,
+							cellRadius: bts.cellRadius,
+						});
+
+						// Tampilkan peta statis jika diaktifkan
+						setShowStaticMap(true);
 					}
-				);
 
-				// Simpan marker dan sektor
+					setTimeout(() => {
+						const detailButton = document.getElementById(
+							`btn-get-details-${bts.cellid}`
+						);
+						if (detailButton) {
+							detailButton.addEventListener("click", async () => {
+								const detailsContainer = document.getElementById(
+									`location-details-${bts.cellid}`
+								);
+								if (detailsContainer) {
+									detailsContainer.style.display = "block";
+									detailsContainer.innerHTML =
+										"<p><strong>Mencari detail lokasi...</strong></p>";
+
+									try {
+										// Gunakan koordinat BTS yang tepat
+										const lat = bts.lat;
+										const lon = bts.lon;
+
+										console.log(
+											`Getting location details for coordinates: ${lat}, ${lon}`
+										);
+
+										// Gunakan Nominatim API langsung untuk reverse geocoding
+										// Ini akan memberikan alamat yang tepat berdasarkan koordinat
+										const nominatimUrl = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=18&addressdetails=1`;
+
+										console.log(
+											"Fetching address from Nominatim:",
+											nominatimUrl
+										);
+
+										// Tambahkan header untuk menghindari throttling
+										const response = await fetch(nominatimUrl, {
+											headers: {
+												"User-Agent": "ReactDashboard/1.0",
+												"Accept-Language":
+													"id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7",
+											},
+										});
+
+										if (!response.ok) {
+											throw new Error(
+												`Nominatim API returned status ${response.status}: ${response.statusText}`
+											);
+										}
+
+										const data = await response.json();
+										console.log("Nominatim response:", data);
+
+										if (data && data.display_name) {
+											// Ekstrak informasi yang relevan
+											const locationDetails = {
+												address: data.display_name,
+												city:
+													data.address.city ||
+													data.address.town ||
+													data.address.village ||
+													data.address.county ||
+													data.address.state ||
+													"Tidak tersedia",
+												road: data.address.road || "Jalan tidak diketahui",
+												suburb:
+													data.address.suburb ||
+													data.address.neighbourhood ||
+													"",
+												postcode: data.address.postcode || "",
+												country: data.address.country || "Indonesia",
+												accuracy: bts.accuracy || 100,
+												lat: lat,
+												lon: lon,
+											};
+
+											// Tampilkan detail lokasi
+											detailsContainer.innerHTML = `
+												<p><strong>Alamat:</strong> ${locationDetails.address}</p>
+												<p><strong>Jalan:</strong> ${locationDetails.road}</p>
+												<p><strong>Kota:</strong> ${locationDetails.city}</p>
+												<p><strong>Koordinat:</strong> ${lat.toFixed(6)}, ${lon.toFixed(6)}</p>
+											`;
+
+											// Tambahkan marker untuk menunjukkan lokasi detail
+											const detailMarker = L.marker([lat, lon], {
+												icon: new L.Icon({
+													iconUrl:
+														"https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png",
+													shadowUrl:
+														"https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png",
+													iconSize: [25, 41],
+													iconAnchor: [12, 41],
+													popupAnchor: [1, -34],
+													shadowSize: [41, 41],
+												}),
+											}).addTo(mapInstanceRef.current);
+
+											// Tambahkan marker ke btsMarkersRef agar bisa dihapus nanti
+											btsMarkersRef.current.push(detailMarker);
+
+											// Tambahkan popup ke marker dan buka popup
+											detailMarker
+												.bindPopup(
+													`
+												<b>${locationDetails.road}</b><br>
+												${locationDetails.suburb ? locationDetails.suburb + ", " : ""}
+												${locationDetails.city}
+											`
+												)
+												.openPopup();
+
+											// Tampilkan lingkaran radius jika ada data cellRadius yang valid
+											if (
+												bts.cellRadius &&
+												bts.cellRadius > 0 &&
+												bts.cellRadius < 5000
+											) {
+												const operatorColor = getOperatorColor(bts.operator);
+
+												// Buat lingkaran cakupan dengan radius yang sesuai
+												const coverageCircle = L.circle([lat, lon], {
+													radius: bts.cellRadius,
+													color: operatorColor,
+													fillColor: operatorColor,
+													fillOpacity: 0.1,
+													weight: 1,
+												}).addTo(mapInstanceRef.current);
+
+												btsMarkersRef.current.push(coverageCircle);
+
+												// Tambahkan sektor cell ID
+												const cellSectors = createCellSectors(
+													mapInstanceRef.current,
+													[lat, lon],
+													bts.cellRadius,
+													3, // 3 sektor untuk tampilan yang realistis
+													{
+														color: operatorColor,
+														fillColor: operatorColor
+															.replace(")", ", 0.1)")
+															.replace("rgb", "rgba"),
+														weight: 1,
+													}
+												);
+
+												// Tambahkan semua layer dari cellSectors ke btsMarkersRef
+												if (cellSectors && cellSectors.getLayers) {
+													cellSectors.getLayers().forEach((layer) => {
+														btsMarkersRef.current.push(layer);
+													});
+												}
+											}
+
+											// Pindahkan peta ke lokasi detail
+											mapInstanceRef.current.panTo([lat, lon]);
+										} else {
+											// Jika Nominatim gagal, tampilkan informasi dasar
+											detailsContainer.innerHTML = `
+												<p><strong>Alamat:</strong> Tidak tersedia</p>
+												<p><strong>Koordinat:</strong> ${lat.toFixed(6)}, ${lon.toFixed(6)}</p>
+												<p><strong>Operator:</strong> ${bts.operator || "Tidak tersedia"}</p>
+												<p><strong>Radio:</strong> ${bts.radio || "Tidak tersedia"}</p>
+											`;
+
+											// Tambahkan marker untuk menunjukkan lokasi
+											const detailMarker = L.marker([lat, lon], {
+												icon: new L.Icon({
+													iconUrl:
+														"https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png",
+													shadowUrl:
+														"https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png",
+													iconSize: [25, 41],
+													iconAnchor: [12, 41],
+													popupAnchor: [1, -34],
+													shadowSize: [41, 41],
+												}),
+											}).addTo(mapInstanceRef.current);
+
+											btsMarkersRef.current.push(detailMarker);
+											detailMarker
+												.bindPopup(
+													`<b>Detail Lokasi</b><br>Koordinat: ${lat.toFixed(
+														6
+													)}, ${lon.toFixed(6)}`
+												)
+												.openPopup();
+
+											// Tampilkan lingkaran radius jika ada data cellRadius yang valid
+											if (
+												bts.cellRadius &&
+												bts.cellRadius > 0 &&
+												bts.cellRadius < 5000
+											) {
+												const operatorColor = getOperatorColor(bts.operator);
+
+												// Buat lingkaran cakupan dengan radius yang sesuai
+												const coverageCircle = L.circle([lat, lon], {
+													radius: bts.cellRadius,
+													color: operatorColor,
+													fillColor: operatorColor,
+													fillOpacity: 0.1,
+													weight: 1,
+												}).addTo(mapInstanceRef.current);
+
+												btsMarkersRef.current.push(coverageCircle);
+
+												// Tambahkan sektor cell ID
+												const cellSectors = createCellSectors(
+													mapInstanceRef.current,
+													[lat, lon],
+													bts.cellRadius,
+													3, // 3 sektor untuk tampilan yang realistis
+													{
+														color: operatorColor,
+														fillColor: operatorColor
+															.replace(")", ", 0.1)")
+															.replace("rgb", "rgba"),
+														weight: 1,
+													}
+												);
+
+												// Tambahkan semua layer dari cellSectors ke btsMarkersRef
+												if (cellSectors && cellSectors.getLayers) {
+													cellSectors.getLayers().forEach((layer) => {
+														btsMarkersRef.current.push(layer);
+													});
+												}
+											}
+
+											// Pindahkan peta ke lokasi detail
+											mapInstanceRef.current.panTo([lat, lon]);
+										}
+									} catch (error) {
+										console.error("Error getting location details:", error);
+
+										// Gunakan koordinat BTS yang tepat
+										const lat = bts.lat;
+										const lon = bts.lon;
+
+										detailsContainer.innerHTML = `
+											<p><strong>Gagal mendapatkan detail lokasi</strong></p>
+											<p>Error: ${error.message}</p>
+											<p><strong>Koordinat:</strong> ${lat.toFixed(6)}, ${lon.toFixed(6)}</p>
+											<p><strong>Operator:</strong> ${bts.operator || "Tidak tersedia"}</p>
+										`;
+
+										// Tambahkan marker untuk menunjukkan lokasi meskipun terjadi error
+										const detailMarker = L.marker([lat, lon], {
+											icon: new L.Icon({
+												iconUrl:
+													"https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png",
+												shadowUrl:
+													"https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png",
+												iconSize: [25, 41],
+												iconAnchor: [12, 41],
+												popupAnchor: [1, -34],
+												shadowSize: [41, 41],
+											}),
+										}).addTo(mapInstanceRef.current);
+
+										btsMarkersRef.current.push(detailMarker);
+										detailMarker
+											.bindPopup(
+												`<b>Detail Lokasi</b><br>Koordinat: ${lat.toFixed(
+													6
+												)}, ${lon.toFixed(6)}`
+											)
+											.openPopup();
+
+										// Tampilkan lingkaran radius jika ada data cellRadius yang valid
+										if (
+											bts.cellRadius &&
+											bts.cellRadius > 0 &&
+											bts.cellRadius < 5000
+										) {
+											const operatorColor = getOperatorColor(bts.operator);
+
+											// Buat lingkaran cakupan dengan radius yang sesuai
+											const coverageCircle = L.circle([lat, lon], {
+												radius: bts.cellRadius,
+												color: operatorColor,
+												fillColor: operatorColor,
+												fillOpacity: 0.1,
+												weight: 1,
+											}).addTo(mapInstanceRef.current);
+
+											btsMarkersRef.current.push(coverageCircle);
+
+											// Tambahkan sektor cell ID
+											const cellSectors = createCellSectors(
+												mapInstanceRef.current,
+												[lat, lon],
+												bts.cellRadius,
+												3, // 3 sektor untuk tampilan yang realistis
+												{
+													color: operatorColor,
+													fillColor: operatorColor
+														.replace(")", ", 0.1)")
+														.replace("rgb", "rgba"),
+													weight: 1,
+												}
+											);
+
+											// Tambahkan semua layer dari cellSectors ke btsMarkersRef
+											if (cellSectors && cellSectors.getLayers) {
+												cellSectors.getLayers().forEach((layer) => {
+													btsMarkersRef.current.push(layer);
+												});
+											}
+										}
+
+										// Pindahkan peta ke lokasi detail
+										mapInstanceRef.current.panTo([lat, lon]);
+									}
+								}
+							});
+						}
+					}, 100);
+				});
+
+				// Tentukan warna berdasarkan operator
+				const operatorColor = getOperatorColor(bts.operator);
+
+				// Simpan data radius dan warna untuk digunakan saat marker diklik
+				marker.btsData = {
+					lat: bts.lat,
+					lon: bts.lon,
+					cellRadius: bts.cellRadius,
+					operatorColor: operatorColor,
+				};
+
+				// Tambahkan event listener untuk menampilkan lingkaran radius saat marker diklik
+				marker.on("click", function () {
+					// Hapus lingkaran radius yang ada (jika ada)
+					if (this.coverageCircle) {
+						mapInstanceRef.current.removeLayer(this.coverageCircle);
+						btsMarkersRef.current = btsMarkersRef.current.filter(
+							(layer) => layer !== this.coverageCircle
+						);
+						this.coverageCircle = null;
+
+						// Hapus sektor cell ID jika ada
+						if (this.cellSectors) {
+							if (this.cellSectors.getLayers) {
+								this.cellSectors.getLayers().forEach((layer) => {
+									mapInstanceRef.current.removeLayer(layer);
+									btsMarkersRef.current = btsMarkersRef.current.filter(
+										(item) => item !== layer
+									);
+								});
+							}
+							this.cellSectors = null;
+						}
+					} else {
+						// Tampilkan lingkaran radius jika data valid
+						if (
+							this.btsData.cellRadius &&
+							this.btsData.cellRadius > 0 &&
+							this.btsData.cellRadius < 5000
+						) {
+							// Buat lingkaran cakupan dengan radius yang sesuai
+							this.coverageCircle = L.circle(
+								[this.btsData.lat, this.btsData.lon],
+								{
+									radius: this.btsData.cellRadius,
+									color: this.btsData.operatorColor,
+									fillColor: this.btsData.operatorColor,
+									fillOpacity: 0.1,
+									weight: 1,
+								}
+							).addTo(mapInstanceRef.current);
+
+							btsMarkersRef.current.push(this.coverageCircle);
+
+							// Tambahkan sektor cell ID
+							this.cellSectors = createCellSectors(
+								mapInstanceRef.current,
+								[this.btsData.lat, this.btsData.lon],
+								this.btsData.cellRadius,
+								3, // 3 sektor untuk tampilan yang realistis
+								{
+									color: this.btsData.operatorColor,
+									fillColor: this.btsData.operatorColor
+										.replace(")", ", 0.1)")
+										.replace("rgb", "rgba"),
+									weight: 1,
+								}
+							);
+
+							// Tambahkan semua layer dari cellSectors ke btsMarkersRef
+							if (this.cellSectors && this.cellSectors.getLayers) {
+								this.cellSectors.getLayers().forEach((layer) => {
+									btsMarkersRef.current.push(layer);
+								});
+							}
+						}
+					}
+				});
+
+				// Simpan marker
 				btsMarkersRef.current.push(marker);
-				// Tambahkan semua layer dari cellSectors ke btsMarkersRef
-				if (cellSectors && cellSectors.getLayers) {
-					cellSectors.getLayers().forEach((layer) => {
-						btsMarkersRef.current.push(layer);
-					});
-				}
 			} catch (error) {
 				console.error("Error adding BTS marker:", error, bts);
 			}
@@ -740,6 +1343,20 @@ function LeafletMap() {
 		btsMarkersRef.current = [];
 	};
 
+	// Fungsi untuk mendapatkan warna berdasarkan operator
+	const getOperatorColor = (operator) => {
+		const colors = {
+			Telkomsel: "#FF0000", // Merah
+			"XL Axiata": "#0000FF", // Biru
+			Indosat: "#FFFF00", // Kuning
+			Tri: "#800080", // Ungu
+			Axis: "#FFA500", // Oranye
+			Smartfren: "#008000", // Hijau
+		};
+
+		return colors[operator] || "#808080"; // Abu-abu sebagai default
+	};
+
 	// Toggle tampilan BTS
 	const toggleBTSLayer = () => {
 		console.log("Toggle BTS layer, current state:", showBTS);
@@ -748,14 +1365,21 @@ function LeafletMap() {
 			console.log("Hiding BTS");
 			clearBTSMarkers();
 			setShowBTS(false);
+			// Reset error jika ada
+			setBtsError(null);
 		} else {
 			// Tampilkan BTS
 			console.log("Showing BTS");
 			setShowBTS(true);
-			setTimeout(() => {
-				console.log("Loading BTS data after toggle");
+			// Muat data BTS segera tanpa delay
+			// Gunakan data yang sudah ada jika tersedia
+			if (btsData && btsData.length > 0) {
+				console.log("Using existing BTS data");
+				addBTSMarkersToMap(btsData);
+			} else {
+				console.log("Loading fresh BTS data");
 				loadBTSData();
-			}, 100);
+			}
 		}
 	};
 
@@ -802,56 +1426,168 @@ function LeafletMap() {
 							onClick={toggleBTSLayer}
 							disabled={isLoadingBTS}
 							variant='default'
+							className='relative'
 						>
-							{isLoadingBTS
-								? "Memuat..."
-								: showBTS
-								? "Sembunyikan BTS"
-								: "Tampilkan BTS"}
+							{isLoadingBTS ? (
+								<>
+									<span className='opacity-50'>Memuat Data BTS</span>
+									<span className='absolute inset-0 flex items-center justify-center'>
+										<svg
+											className='animate-spin h-5 w-5 text-white'
+											xmlns='http://www.w3.org/2000/svg'
+											fill='none'
+											viewBox='0 0 24 24'
+										>
+											<circle
+												className='opacity-25'
+												cx='12'
+												cy='12'
+												r='10'
+												stroke='currentColor'
+												strokeWidth='4'
+											></circle>
+											<path
+												className='opacity-75'
+												fill='currentColor'
+												d='M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z'
+											></path>
+										</svg>
+									</span>
+								</>
+							) : showBTS ? (
+								"Sembunyikan BTS"
+							) : (
+								"Tampilkan BTS"
+							)}
 						</Button>
 					</div>
 				</CardHeader>
 				<CardContent>
-					{/* Provider Filter */}
-					{showBTS && (
-						<div className='mb-3 space-y-2'>
-							<Label htmlFor='provider-select'>Filter Provider:</Label>
-							<Select
-								value={selectedProvider}
-								onValueChange={setSelectedProvider}
+					{/* Provider Filter - Selalu tampilkan filter provider */}
+					<div className='mb-3 space-y-2'>
+						<Label htmlFor='provider-select'>Filter Provider:</Label>
+						<Select
+							value={selectedProvider}
+							onValueChange={setSelectedProvider}
+							disabled={isLoadingBTS || !showBTS}
+						>
+							<SelectTrigger id='provider-select' className='w-full'>
+								<SelectValue placeholder='Pilih provider' />
+							</SelectTrigger>
+							<SelectContent className='select-content'>
+								{providers.map((provider) => (
+									<SelectItem key={provider.id} value={provider.id}>
+										{provider.name}
+									</SelectItem>
+								))}
+							</SelectContent>
+						</Select>
+						{!showBTS && (
+							<p className='text-xs text-muted-foreground'>
+								Aktifkan tampilan BTS untuk menggunakan filter provider
+							</p>
+						)}
+					</div>
+
+					{/* Toggle untuk API Unwired Labs */}
+					<div className='mb-3 space-y-2'>
+						<div className='flex items-center justify-between'>
+							<Label htmlFor='unwired-toggle'>Gunakan API Unwired Labs:</Label>
+							<div className='flex items-center space-x-2'>
+								<Switch
+									id='unwired-toggle'
+									checked={useUnwiredLabs}
+									onCheckedChange={(checked) => {
+										console.log("Switch toggled to:", checked);
+										// Gunakan pendekatan yang lebih sederhana
+										try {
+											setUseUnwiredLabs(checked);
+										} catch (error) {
+											console.error("Error setting useUnwiredLabs:", error);
+										}
+									}}
+									disabled={isLoadingBTS}
+								/>
+							</div>
+						</div>
+						<p className='text-xs text-muted-foreground'>
+							{useUnwiredLabs
+								? "Menggunakan API Unwired Labs untuk data BTS"
+								: "Menggunakan API default untuk data BTS"}
+						</p>
+
+						{useUnwiredLabs && (
+							<div className='mt-2 flex flex-wrap gap-2'>
+								<Button
+									size='sm'
+									variant={showApiBalance ? "default" : "outline"}
+									onClick={() => setShowApiBalance(!showApiBalance)}
+								>
+									Saldo API
+								</Button>
+								<Button
+									size='sm'
+									variant={showStaticMap ? "default" : "outline"}
+									onClick={() => setShowStaticMap(!showStaticMap)}
+									disabled={!selectedBTSLocation}
+								>
+									Peta Statis
+								</Button>
+							</div>
+						)}
+					</div>
+
+					{isLoadingBTS && (
+						<div className='mt-2 p-2 bg-yellow-50 text-yellow-700 rounded-md text-sm flex items-center'>
+							<svg
+								className='animate-spin -ml-1 mr-2 h-4 w-4 text-yellow-700'
+								xmlns='http://www.w3.org/2000/svg'
+								fill='none'
+								viewBox='0 0 24 24'
 							>
-								<SelectTrigger id='provider-select' className='w-full'>
-									<SelectValue placeholder='Pilih provider' />
-								</SelectTrigger>
-								<SelectContent className='select-content'>
-									{providers.map((provider) => (
-										<SelectItem key={provider.id} value={provider.id}>
-											{provider.name}
-										</SelectItem>
-									))}
-								</SelectContent>
-							</Select>
+								<circle
+									className='opacity-25'
+									cx='12'
+									cy='12'
+									r='10'
+									stroke='currentColor'
+									strokeWidth='4'
+								></circle>
+								<path
+									className='opacity-75'
+									fill='currentColor'
+									d='M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z'
+								></path>
+							</svg>
+							Memuat data BTS untuk area yang terlihat...
 						</div>
 					)}
 
-					{btsError && (
+					{btsError && !isLoadingBTS && (
 						<div className='mt-2 p-2 bg-red-100 text-red-700 rounded-md text-sm'>
 							{btsError}
 						</div>
 					)}
 
-					{showBTS && btsCount > 0 && (
+					{showBTS && btsCount > 0 && !isLoadingBTS && (
 						<div className='mt-2 p-2 bg-blue-100 text-blue-700 rounded-md text-sm'>
 							Menampilkan {btsData.length} dari {btsCount} BTS di area yang
 							terlihat.
 						</div>
 					)}
 
-					{!showBTS && (
+					{!showBTS && !isLoadingBTS && (
 						<p className='text-sm text-muted-foreground mt-2'>
 							Klik tombol "Tampilkan BTS" untuk melihat lokasi Base Transceiver
 							Station (BTS) di area yang terlihat pada peta.
 						</p>
+					)}
+
+					{showBTS && btsCount === 0 && !btsError && !isLoadingBTS && (
+						<div className='mt-2 p-2 bg-gray-100 text-gray-700 rounded-md text-sm'>
+							Tidak ada data BTS yang ditemukan di area ini. Coba pindahkan peta
+							ke area lain.
+						</div>
 					)}
 				</CardContent>
 			</Card>
@@ -1013,6 +1749,31 @@ function LeafletMap() {
 					</div>
 				</CardContent>
 			</Card>
+
+			{/* Unwired Labs API Features - Super Simplified */}
+			{useUnwiredLabs && (
+				<div className='mt-4'>
+					<Card>
+						<CardHeader>
+							<CardTitle>Fitur API Unwired Labs</CardTitle>
+						</CardHeader>
+						<CardContent>
+							<p className='text-sm text-muted-foreground mb-4'>
+								Fitur API Unwired Labs berhasil diaktifkan.
+							</p>
+							<div className='mb-4 p-3 bg-gray-100 rounded-md'>
+								<p className='text-sm'>
+									Klik marker BTS pada peta untuk melihat detail.
+								</p>
+							</div>
+						</CardContent>
+					</Card>
+				</div>
+			)}
+
+			{/* LAC Search - Removed for simplicity */}
+
+			{/* Static Map - Removed for simplicity */}
 
 			<div className='grid grid-cols-1 md:grid-cols-3 gap-4 mt-4'>
 				<Card>

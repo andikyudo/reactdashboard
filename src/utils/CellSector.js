@@ -5,7 +5,7 @@ export function createCellSectors(
 	map,
 	latlng,
 	radius,
-	numSectors = 6,
+	numSectors = 3, // Default 3 sektor untuk BTS modern
 	options = {}
 ) {
 	const {
@@ -16,50 +16,55 @@ export function createCellSectors(
 	// Buat container untuk semua sektor
 	const container = L.layerGroup().addTo(map);
 
-	// Buat lingkaran utama untuk cell ID
-	const circle = L.circle(latlng, {
-		radius: radius,
-		color: color,
-		fillColor: fillColor,
-		fillOpacity: 0.05,
-		weight: 1,
-	}).addTo(container);
-  
 	// Buat sektor-sektor
 	const sectorAngle = 360 / numSectors;
 
+	// Acak rotasi awal untuk membuat sektor lebih realistis
+	// BTS biasanya memiliki orientasi yang berbeda-beda
+	const initialRotation = Math.floor(Math.random() * 60); // Rotasi acak 0-60 derajat
+
 	for (let i = 0; i < numSectors; i++) {
-		// Hitung sudut untuk sektor ini
-		const startAngle = i * sectorAngle;
-		const endAngle = (i + 1) * sectorAngle;
+		// Hitung sudut untuk sektor ini dengan rotasi awal
+		const startAngle = initialRotation + i * sectorAngle;
+		const endAngle = initialRotation + (i + 1) * sectorAngle;
 
 		// Buat sektor dengan polygon
+		// Gunakan 120 derajat untuk sektor (bukan 360/numSectors) untuk membuat sektor yang lebih realistis
+		// BTS biasanya memiliki sektor dengan sudut 120 derajat
+		const sectorWidth = 120; // Lebar sektor dalam derajat
+		const sectorStartAngle = startAngle - sectorWidth / 2;
+		const sectorEndAngle = startAngle + sectorWidth / 2;
+
 		const sectorPoints = getSectorPoints(
 			latlng,
 			radius,
-			startAngle,
-			endAngle,
-			10
+			sectorStartAngle,
+			sectorEndAngle,
+			15 // Lebih banyak titik untuk kurva yang lebih halus
 		);
 
 		// Gunakan warna yang lebih lembut untuk sektor
-		const sectorColor = `hsla(${((i * 360) / numSectors) % 360}, 50%, 70%, 0.3)`;
+		// Gunakan warna yang sama dengan parameter color tapi dengan opacity yang berbeda
+		const sectorFillColor =
+			fillColor || color.replace(")", ", 0.15)").replace("rgb", "rgba");
 
 		const sector = L.polygon(sectorPoints, {
 			color: color,
-			fillColor: sectorColor,
-			fillOpacity: 0.1,
+			fillColor: sectorFillColor,
+			fillOpacity: 0.15,
 			weight: 1,
 		}).addTo(container);
 
 		// Tambahkan label sektor
-		const labelAngle = startAngle + sectorAngle / 2;
-		const labelDistance = radius * 0.7;
+		const labelAngle = startAngle;
+		const labelDistance = radius * 0.6;
 		const labelPoint = getPointAtDistance(latlng, labelDistance, labelAngle);
 
 		const labelIcon = L.divIcon({
 			className: "sector-label",
-			html: `<div>${i + 1}</div>`,
+			html: `<div style="color: ${color}; font-weight: bold; text-shadow: 1px 1px 1px white;">${
+				i + 1
+			}</div>`,
 			iconSize: [20, 20],
 			iconAnchor: [10, 10],
 		});

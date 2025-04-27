@@ -10,4 +10,13 @@ export default defineConfig({
 			"@": path.resolve(__dirname, "./src"),
 		},
 	},
+	server: {
+		proxy: {
+			"/api/unwiredlabs": {
+				target: "https://us1.unwiredlabs.com/v2",
+				changeOrigin: true,
+				rewrite: (path) => path.replace(/^\/api\/unwiredlabs/, ""),
+			},
+		},
+	},
 });
