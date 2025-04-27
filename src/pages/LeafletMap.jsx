@@ -16,7 +16,6 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
 
 // Import PulsingDot
 import { createPulsingDotMarker } from "../utils/PulsingDot";
@@ -365,25 +364,42 @@ function LeafletMap() {
 	useEffect(() => {
 		console.log("useUnwiredLabs changed to:", useUnwiredLabs);
 
-		// Reset state terkait BTS
-		setSelectedBTSLocation(null);
-		setShowStaticMap(false);
-
 		// Jika showBTS aktif, muat ulang data BTS
 		if (showBTS) {
 			// Hapus marker yang ada
 			clearBTSMarkers();
 
-			// Muat ulang data BTS dengan API yang baru
-			// Gunakan setTimeout untuk memastikan state sudah diperbarui
-			setTimeout(() => {
-				console.log("Reloading BTS data after API toggle");
-				try {
-					loadBTSData();
-				} catch (error) {
-					console.error("Error loading BTS data after API toggle:", error);
-				}
-			}, 300);
+			// Gunakan try-catch untuk menangani error
+			try {
+				// Muat ulang data BTS dengan API yang baru
+				// Gunakan setTimeout dengan delay yang lebih lama untuk memastikan state sudah diperbarui
+				const timeoutId = setTimeout(() => {
+					console.log("Reloading BTS data after API toggle");
+					try {
+						// Periksa apakah mapInstance masih ada
+						if (mapInstanceRef.current) {
+							loadBTSData();
+						} else {
+							console.warn(
+								"Map instance not available, cannot reload BTS data"
+							);
+						}
+					} catch (error) {
+						console.error("Error loading BTS data after API toggle:", error);
+						// Set error message
+						setBtsError(
+							"Gagal memuat data BTS: " + (error.message || "Unknown error")
+						);
+					}
+				}, 500);
+
+				// Cleanup function untuk membatalkan timeout jika komponen di-unmount
+				return () => clearTimeout(timeoutId);
+			} catch (error) {
+				console.error("Error in useUnwiredLabs effect:", error);
+				// Set error message
+				setBtsError("Terjadi kesalahan: " + (error.message || "Unknown error"));
+			}
 		}
 		/* eslint-disable react-hooks/exhaustive-deps */
 	}, [useUnwiredLabs]);
@@ -637,40 +653,59 @@ function LeafletMap() {
 
 	// Fungsi untuk memuat data BTS
 	const loadBTSData = async () => {
+		// Validasi mapInstance
 		if (!mapInstanceRef.current) {
 			console.log("Map instance not available, skipping BTS data load");
+			setBtsError("Peta belum siap, coba muat ulang halaman");
 			return;
 		}
 
 		// PENTING: Selalu muat data BTS, bahkan jika showBTS dimatikan
 		// Ini memastikan data selalu dimuat saat peta bergerak
 		// Kita hanya akan menyembunyikan marker jika showBTS dimatikan
-		console.log("Loading BTS data, showBTS state:", showBTS);
+		console.log(
+			"Loading BTS data, showBTS state:",
+			showBTS,
+			"useUnwiredLabs:",
+			useUnwiredLabs
+		);
 
 		try {
+			// Set loading state
 			setIsLoadingBTS(true);
 			setBtsError(null);
 
 			// Dapatkan batas peta saat ini
 			const bounds = mapInstanceRef.current.getBounds();
+			if (!bounds || typeof bounds.getNorth !== "function") {
+				console.error("Invalid bounds object:", bounds);
+				throw new Error("Batas peta tidak valid");
+			}
+
 			console.log("Current map bounds:", bounds);
 
 			// Dapatkan zoom level saat ini
 			const zoomLevel = mapInstanceRef.current.getZoom();
 			console.log("Current zoom level:", zoomLevel);
 
-			// Buat key cache berdasarkan bounds dan zoom level
-			// Tidak menggunakan selectedProvider untuk memastikan data selalu dimuat
-			const cacheKey = `${bounds.getNorth().toFixed(4)}_${bounds
-				.getSouth()
-				.toFixed(4)}_${bounds.getEast().toFixed(4)}_${bounds
-				.getWest()
-				.toFixed(4)}_${zoomLevel}`;
+			// Buat key cache berdasarkan bounds, zoom level, dan API yang digunakan
+			// Tambahkan useUnwiredLabs ke cache key untuk memastikan cache berbeda untuk setiap API
+			const cacheKey = `${useUnwiredLabs ? "unwired_" : "location_"}${bounds
+				.getNorth()
+				.toFixed(4)}_${bounds.getSouth().toFixed(4)}_${bounds
+				.getEast()
+				.toFixed(4)}_${bounds.getWest().toFixed(4)}_${zoomLevel}`;
 
 			// Cek apakah data ada di cache
 			const cachedData = btsCache.get(cacheKey);
 			if (cachedData) {
 				console.log("Using cached BTS data for current view");
+
+				// Validasi data cache
+				if (!cachedData.cells || !Array.isArray(cachedData.cells)) {
+					console.error("Invalid cached data structure:", cachedData);
+					throw new Error("Data cache tidak valid");
+				}
 
 				// Set data BTS dari cache
 				setBtsCount(cachedData.cells.length);
@@ -709,6 +744,12 @@ function LeafletMap() {
 						console.log("Fetching BTS data from Unwired Labs API");
 						btsData = await unwiredSearchCellTowers(bounds);
 						console.log("Unwired Labs API response processed:", btsData);
+
+						// Validasi respons API
+						if (!btsData || !btsData.cells || !Array.isArray(btsData.cells)) {
+							console.error("Invalid Unwired Labs API response:", btsData);
+							throw new Error("Respons API Unwired Labs tidak valid");
+						}
 					} catch (unwiredError) {
 						console.error(
 							"Error fetching from Unwired Labs API:",
@@ -717,11 +758,23 @@ function LeafletMap() {
 						// Fallback ke LocationAPI jika Unwired Labs API gagal
 						console.log("Falling back to LocationAPI");
 						btsData = await searchCellTowers(bounds);
+
+						// Validasi respons API fallback
+						if (!btsData || !btsData.cells || !Array.isArray(btsData.cells)) {
+							console.error("Invalid LocationAPI response:", btsData);
+							throw new Error("Respons API LocationAPI tidak valid");
+						}
 					}
 				} else {
 					// Gunakan LocationAPI
 					console.log("Fetching BTS data from LocationAPI");
 					btsData = await searchCellTowers(bounds);
+
+					// Validasi respons API
+					if (!btsData || !btsData.cells || !Array.isArray(btsData.cells)) {
+						console.error("Invalid LocationAPI response:", btsData);
+						throw new Error("Respons API LocationAPI tidak valid");
+					}
 				}
 
 				console.log("API response processed:", btsData);
@@ -1501,20 +1554,38 @@ function LeafletMap() {
 						<div className='flex items-center justify-between'>
 							<Label htmlFor='unwired-toggle'>Gunakan API Unwired Labs:</Label>
 							<div className='flex items-center space-x-2'>
-								<Switch
+								<Button
 									id='unwired-toggle'
-									checked={useUnwiredLabs}
-									onCheckedChange={(checked) => {
-										console.log("Switch toggled to:", checked);
-										// Gunakan pendekatan yang lebih sederhana
+									variant={useUnwiredLabs ? "default" : "outline"}
+									size='sm'
+									onClick={() => {
+										console.log(
+											"Button toggled, current state:",
+											useUnwiredLabs
+										);
+										// Gunakan pendekatan yang lebih sederhana dengan Button
 										try {
-											setUseUnwiredLabs(checked);
+											// Jika sedang loading, jangan lakukan apa-apa
+											if (isLoadingBTS) return;
+
+											// Toggle state
+											const newValue = !useUnwiredLabs;
+											console.log("Setting useUnwiredLabs to:", newValue);
+
+											// Reset state terkait
+											setSelectedBTSLocation(null);
+											setShowStaticMap(false);
+
+											// Set state baru
+											setUseUnwiredLabs(newValue);
 										} catch (error) {
-											console.error("Error setting useUnwiredLabs:", error);
+											console.error("Error toggling useUnwiredLabs:", error);
 										}
 									}}
 									disabled={isLoadingBTS}
-								/>
+								>
+									{useUnwiredLabs ? "Aktif" : "Nonaktif"}
+								</Button>
 							</div>
 						</div>
 						<p className='text-xs text-muted-foreground'>
